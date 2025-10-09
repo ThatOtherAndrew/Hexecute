@@ -19,7 +19,7 @@
           go
 
           # Build deps
-          mesa
+          libGL
 
           # X11
           xorg.libXi
