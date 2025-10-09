@@ -16,24 +16,20 @@
         name = "hexecute";
 
         packages = with pkgs; [
-          at-spi2-atk
-          atkmm
-          bun
-          cairo
-          cargo
-          gdk-pixbuf
-          glib
-          gobject-introspection
-          gtk3
-          harfbuzz
-          librsvg
-          libsoup_3
-          openssl
-          pango
-          pkg-config
-          rustc
-          webkitgtk_4_1
-          xdg-utils
+          go
+
+          # Build deps
+          mesa
+
+          # X11
+          xorg.libXi
+          xorg.libXcursor
+          xorg.libXrandr
+          xorg.libXinerama
+
+          # Wayland
+          wayland
+          libxkbcommon
         ];
       };
     };
