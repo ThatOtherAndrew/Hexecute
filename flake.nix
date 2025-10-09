@@ -14,8 +14,26 @@
     {
       devShells.${system}.default = pkgs.mkShell {
         name = "hexecute";
+
         packages = with pkgs; [
+          at-spi2-atk
+          atkmm
           bun
+          cairo
+          cargo
+          gdk-pixbuf
+          glib
+          gobject-introspection
+          gtk3
+          harfbuzz
+          librsvg
+          libsoup_3
+          openssl
+          pango
+          pkg-config
+          rustc
+          webkitgtk_4_1
+          xdg-utils
         ];
       };
     };
