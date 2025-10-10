@@ -3,7 +3,7 @@ package main
 import rl "github.com/gen2brain/raylib-go/raylib"
 
 func main() {
-	rl.SetConfigFlags(rl.FlagWindowTransparent)
+	rl.SetConfigFlags(rl.FlagWindowTransparent | rl.FlagWindowHighdpi)
 	rl.InitWindow(500, 500, "hexecute")
 	rl.SetWindowState(rl.FlagWindowUndecorated)
 	defer rl.CloseWindow()
