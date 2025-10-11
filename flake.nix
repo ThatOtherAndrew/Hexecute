@@ -20,6 +20,10 @@
 
           # Build deps
           libGL
+          libxxf86vm
+          pkg-config
+          SDL2
+          sdl3
 
           # X11
           xorg.libXi
