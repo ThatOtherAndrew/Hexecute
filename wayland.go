@@ -13,7 +13,6 @@ package main
 #include "wlr-layer-shell-client.h"
 #include "keyboard-shortcuts-inhibit-client.h"
 
-// Include protocol implementation inline
 #include <stdbool.h>
 #include <stdint.h>
 
@@ -31,7 +30,6 @@ extern const struct wl_interface wl_output_interface;
 extern const struct wl_interface wl_surface_interface;
 extern const struct wl_interface zwlr_layer_surface_v1_interface;
 
-// Stub for xdg_popup_interface (not actually used but referenced in types array)
 static const struct wl_interface xdg_popup_interface = {
 	"xdg_popup", 0, 0, NULL, 0, NULL,
 };
@@ -83,7 +81,6 @@ WL_PRIVATE const struct wl_interface zwlr_layer_surface_v1_interface = {
 	2, zwlr_layer_surface_v1_events,
 };
 
-// Keyboard shortcuts inhibit protocol
 static const struct wl_interface *keyboard_shortcuts_inhibit_unstable_v1_types[] = {
 	&zwp_keyboard_shortcuts_inhibitor_v1_interface,
 	&wl_surface_interface,
@@ -116,7 +113,6 @@ WL_PRIVATE const struct wl_interface zwp_keyboard_shortcuts_inhibitor_v1_interfa
 	2, zwp_keyboard_shortcuts_inhibitor_v1_events,
 };
 
-// Globals
 struct wl_compositor *compositor = NULL;
 struct zwlr_layer_shell_v1 *layer_shell = NULL;
 struct wl_seat *seat = NULL;
@@ -128,7 +124,6 @@ struct zwlr_layer_surface_v1 *layer_surface_global = NULL;
 int32_t width_global = 0;
 int32_t height_global = 0;
 
-// Callback for layer surface configure
 void layer_surface_configure(void *data, struct zwlr_layer_surface_v1 *surface,
                              uint32_t serial, uint32_t width, uint32_t height) {
     width_global = width;
@@ -153,7 +148,6 @@ static const struct wl_seat_listener seat_listener = {
     .name = seat_name,
 };
 
-// Registry listener
 static void registry_global(void *data, struct wl_registry *registry,
                            uint32_t name, const char *interface,
                            uint32_t version) {
@@ -164,7 +158,6 @@ static void registry_global(void *data, struct wl_registry *registry,
             wl_registry_bind(registry, name, &zwlr_layer_shell_v1_interface, 1);
     } else if (strcmp(interface, "wl_seat") == 0) {
         seat = wl_registry_bind(registry, name, &wl_seat_interface, 1);
-        // Add listener immediately to catch capabilities event
         wl_seat_add_listener(seat, &seat_listener, NULL);
     } else if (strcmp(interface, "zwp_keyboard_shortcuts_inhibit_manager_v1") == 0) {
         shortcuts_inhibit_manager = (struct zwp_keyboard_shortcuts_inhibit_manager_v1 *)
@@ -181,7 +174,6 @@ static const struct wl_registry_listener registry_listener = {
     .global_remove = registry_global_remove,
 };
 
-// Helper functions
 struct wl_registry *get_registry(struct wl_display *display) {
     return wl_display_get_registry(display);
 }
@@ -200,7 +192,6 @@ struct zwlr_layer_surface_v1 *create_layer_surface(struct wl_surface *surface) {
             layer_shell, surface, NULL,
             ZWLR_LAYER_SHELL_V1_LAYER_OVERLAY, "hexecute");
 
-    // Configure as fullscreen transparent overlay
     zwlr_layer_surface_v1_set_anchor(layer_surface_global,
         ZWLR_LAYER_SURFACE_V1_ANCHOR_TOP |
         ZWLR_LAYER_SURFACE_V1_ANCHOR_BOTTOM |
@@ -209,7 +200,6 @@ struct zwlr_layer_surface_v1 *create_layer_surface(struct wl_surface *surface) {
 
     zwlr_layer_surface_v1_set_exclusive_zone(layer_surface_global, -1);
 
-    // Enable exclusive keyboard interactivity to capture all keyboard input
     zwlr_layer_surface_v1_set_keyboard_interactivity(layer_surface_global,
         ZWLR_LAYER_SURFACE_V1_KEYBOARD_INTERACTIVITY_EXCLUSIVE);
 
@@ -222,7 +212,6 @@ struct zwlr_layer_surface_v1 *create_layer_surface(struct wl_surface *surface) {
 
 void set_input_region(int32_t width, int32_t height) {
     if (surface_global) {
-        // Create input region covering the full surface to capture all input
         struct wl_region *region = wl_compositor_create_region(compositor);
         wl_region_add(region, 0, 0, width, height);
         wl_surface_set_input_region(surface_global, region);
@@ -232,29 +221,24 @@ void set_input_region(int32_t width, int32_t height) {
 }
 
 void disable_all_input() {
-    // Destroy keyboard shortcuts inhibitor to release compositor shortcuts
     if (shortcuts_inhibitor) {
         zwp_keyboard_shortcuts_inhibitor_v1_destroy(shortcuts_inhibitor);
         shortcuts_inhibitor = NULL;
     }
 
-    // Set keyboard interactivity to NONE to stop capturing keyboard
     if (layer_surface_global) {
         zwlr_layer_surface_v1_set_keyboard_interactivity(layer_surface_global,
             ZWLR_LAYER_SURFACE_V1_KEYBOARD_INTERACTIVITY_NONE);
     }
 
-    // Create empty input region to allow mouse click-through
     if (surface_global) {
         struct wl_region *region = wl_compositor_create_region(compositor);
-        // Don't add any area - empty region means no input capture
         wl_surface_set_input_region(surface_global, region);
         wl_region_destroy(region);
         wl_surface_commit(surface_global);
     }
 }
 
-// Pointer listener
 static int button_state = 0;
 static double mouse_x = 0;
 static double mouse_y = 0;
@@ -263,7 +247,6 @@ void pointer_enter(void *data, struct wl_pointer *pointer, uint32_t serial,
                   struct wl_surface *surface, wl_fixed_t x, wl_fixed_t y) {
     mouse_x = wl_fixed_to_double(x);
     mouse_y = wl_fixed_to_double(y);
-    // Hide the cursor by setting it to NULL
     wl_pointer_set_cursor(pointer, serial, NULL, 0, 0);
 }
 
@@ -279,7 +262,7 @@ void pointer_motion(void *data, struct wl_pointer *pointer, uint32_t time,
 
 void pointer_button(void *data, struct wl_pointer *pointer, uint32_t serial,
                    uint32_t time, uint32_t button, uint32_t state) {
-    if (button == 272) { // BTN_LEFT
+    if (button == 272) {
         button_state = state;
     }
 }
@@ -312,13 +295,11 @@ static const struct wl_pointer_listener pointer_listener = {
     .axis_discrete = pointer_axis_discrete,
 };
 
-// Keyboard listener
 static uint32_t last_key = 0;
 static uint32_t last_key_state = 0;
 
 void keyboard_keymap(void *data, struct wl_keyboard *keyboard, uint32_t format,
                      int32_t fd, uint32_t size) {
-    // We don't need keymaps for basic key detection, just close the fd
     close(fd);
 }
 
@@ -365,7 +346,6 @@ void seat_capabilities(void *data, struct wl_seat *seat, uint32_t capabilities) 
         keyboard = wl_seat_get_keyboard(seat);
         wl_keyboard_add_listener(keyboard, &keyboard_listener, NULL);
 
-        // Inhibit keyboard shortcuts if manager is available
         if (shortcuts_inhibit_manager && surface_global && !shortcuts_inhibitor) {
             shortcuts_inhibitor = zwp_keyboard_shortcuts_inhibit_manager_v1_inhibit_shortcuts(
                 shortcuts_inhibit_manager, surface_global, seat);
@@ -431,20 +411,14 @@ type WaylandWindow struct {
 func NewWaylandWindow() (*WaylandWindow, error) {
 	w := &WaylandWindow{}
 
-	// Connect to Wayland display
 	w.display = C.wl_display_connect(nil)
 	if w.display == nil {
 		return nil, &WaylandError{"failed to connect to Wayland display"}
 	}
 
-	// Get registry and add listener
 	w.registry = C.get_registry(w.display)
 	C.add_registry_listener(w.registry)
-
-	// Roundtrip to get globals
 	C.wl_display_roundtrip(w.display)
-
-	// Check if we got compositor and layer shell
 	if C.compositor == nil {
 		return nil, &WaylandError{"compositor not available"}
 	}
@@ -452,46 +426,36 @@ func NewWaylandWindow() (*WaylandWindow, error) {
 		return nil, &WaylandError{"layer shell not available"}
 	}
 
-	// Create surface
 	w.surface = C.wl_compositor_create_surface(C.compositor)
 	if w.surface == nil {
 		return nil, &WaylandError{"failed to create surface"}
 	}
 
-	// Create layer surface
 	w.layerSurface = C.create_layer_surface(w.surface)
 
-	// Roundtrip to get configure event
 	C.wl_display_roundtrip(w.display)
 
-	// Get dimensions
 	var width, height C.int32_t
 	C.get_dimensions(&width, &height)
 	w.width = int32(width)
 	w.height = int32(height)
 
 	if w.width == 0 || w.height == 0 {
-		// Default to reasonable size if not set
 		w.width = 1920
 		w.height = 1080
 	}
 
-	// Do another roundtrip to receive seat capabilities
 	C.wl_display_roundtrip(w.display)
 
-	// Set input region now that we have dimensions
 	C.set_input_region(C.int32_t(w.width), C.int32_t(w.height))
 
-	// Initialize EGL
 	if err := w.initEGL(); err != nil {
 		return nil, err
 	}
 
-	// Commit surface after EGL setup to ensure it's ready to receive events
 	C.wl_surface_commit(w.surface)
 	C.wl_display_flush(w.display)
 
-	// Do multiple roundtrips to ensure the surface is fully mapped and gets focus
 	C.wl_display_roundtrip(w.display)
 	C.wl_display_roundtrip(w.display)
 	C.wl_display_flush(w.display)
@@ -500,25 +464,21 @@ func NewWaylandWindow() (*WaylandWindow, error) {
 }
 
 func (w *WaylandWindow) initEGL() error {
-	// Create EGL window
 	w.eglWindow = C.wl_egl_window_create(w.surface, C.int(w.width), C.int(w.height))
 	if w.eglWindow == nil {
 		return fmt.Errorf("failed to create EGL window")
 	}
 
-	// Get EGL display
 	w.eglDisplay = C.eglGetDisplay(C.EGLNativeDisplayType(w.display))
 	if w.eglDisplay == C.EGLDisplay(C.EGL_NO_DISPLAY) {
 		return fmt.Errorf("failed to get EGL display")
 	}
 
-	// Initialize EGL
 	var major, minor C.EGLint
 	if C.eglInitialize(w.eglDisplay, &major, &minor) == C.EGL_FALSE {
 		return fmt.Errorf("failed to initialize EGL")
 	}
 
-	// Configure EGL
 	configAttribs := []C.EGLint{
 		C.EGL_SURFACE_TYPE, C.EGL_WINDOW_BIT,
 		C.EGL_RED_SIZE, 8,
@@ -535,10 +495,7 @@ func (w *WaylandWindow) initEGL() error {
 		return fmt.Errorf("failed to choose EGL config")
 	}
 
-	// Bind OpenGL API
 	C.eglBindAPI(C.EGL_OPENGL_API)
-
-	// Create EGL context
 	contextAttribs := []C.EGLint{
 		C.EGL_CONTEXT_MAJOR_VERSION, 4,
 		C.EGL_CONTEXT_MINOR_VERSION, 1,
@@ -551,13 +508,11 @@ func (w *WaylandWindow) initEGL() error {
 		return fmt.Errorf("failed to create EGL context")
 	}
 
-	// Create EGL surface
 	w.eglSurface = C.eglCreateWindowSurface(w.eglDisplay, config, C.EGLNativeWindowType(w.eglWindow), nil)
 	if w.eglSurface == nil {
 		return fmt.Errorf("failed to create EGL surface")
 	}
 
-	// Make context current
 	if C.eglMakeCurrent(w.eglDisplay, w.eglSurface, w.eglSurface, w.eglContext) == C.EGL_FALSE {
 		return fmt.Errorf("failed to make EGL context current")
 	}
@@ -576,7 +531,7 @@ func (w *WaylandWindow) GetSize() (int, int) {
 }
 
 func (w *WaylandWindow) ShouldClose() bool {
-	return false // Add proper close handling if needed
+	return false
 }
 
 func (w *WaylandWindow) SwapBuffers() {
@@ -584,9 +539,7 @@ func (w *WaylandWindow) SwapBuffers() {
 }
 
 func (w *WaylandWindow) PollEvents() {
-	// Flush outgoing requests
 	C.wl_display_flush(w.display)
-	// Dispatch any pending events
 	C.wl_display_dispatch_pending(w.display)
 }
 
@@ -598,11 +551,9 @@ func (w *WaylandWindow) GetCursorPos() (float64, float64) {
 
 func (w *WaylandWindow) GetMouseButton() bool {
 	state := C.get_button_state()
-	return state == 1 // WL_POINTER_BUTTON_STATE_PRESSED
+	return state == 1
 }
 
-// GetLastKey returns the last key pressed and its state (1=pressed, 0=released)
-// Returns (key, state, hasKey) - hasKey is false if no key event occurred
 func (w *WaylandWindow) DisableInput() {
 	C.disable_all_input()
 }
@@ -613,7 +564,6 @@ func (w *WaylandWindow) GetLastKey() (uint32, uint32, bool) {
 	return key, state, key != 0
 }
 
-// ClearLastKey clears the last key state
 func (w *WaylandWindow) ClearLastKey() {
 	C.clear_last_key()
 }
