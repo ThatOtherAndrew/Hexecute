@@ -44,7 +44,9 @@ type Game struct {
 	lastCursorX       float32
 	lastCursorY       float32
 	cursorVelocity    float32
+	smoothVelocity    float32
 	smoothRotation    float32
+	smoothDrawing     float32
 }
 
 const vertexShader = `
@@ -212,6 +214,7 @@ out vec4 FragColor;
 
 uniform float time;
 uniform float velocity;
+uniform float isDrawing;
 
 vec3 hsv2rgb(vec3 c) {
 	vec4 K = vec4(1.0, 2.0 / 3.0, 1.0 / 3.0, 3.0);
@@ -267,48 +270,58 @@ void main() {
 	// Velocity-based parameters (0 = static, 1 = fast)
 	float velocityNorm = clamp(velocity * 0.01, 0.0, 1.0);
 
-	// Energy level: high when moving, low when static
-	float energy = mix(0.3, 1.0, velocityNorm);
+	// Drawing boost: extra energy when actively drawing
+	float drawBoost = isDrawing * 0.7;
+
+	// Energy level: high when moving or drawing, low when static
+	float energy = mix(0.3, 1.0, velocityNorm) + drawBoost;
 
 	// Create multiple animated orbs for metaball effect
 	float sdf = 1000.0; // Start with large distance
 
-	// Central orb size based on velocity (smaller when static)
-	float centralSize = mix(0.15, 0.35, velocityNorm);
-	float pulse = sin(time * (3.0 + velocityNorm * 2.0)) * 0.1 * energy + 0.9;
+	// Central orb pulses more aggressively when drawing
+	float centralSize = mix(0.15, 0.35, velocityNorm) + isDrawing * 0.05;
+	float pulseSpeed = (3.0 + velocityNorm * 2.0) * (1.0 + isDrawing * 0.75);
+	float pulseAmount = (0.1 * energy + isDrawing * 0.075);
+	float pulse = sin(time * pulseSpeed) * pulseAmount + 0.9;
 	float centralDist = length(coord) - centralSize * pulse;
 	sdf = centralDist;
 
-	// Orbiting energy blobs (fewer and closer when static, more when moving)
-	int numBlobs = int(mix(5.0, 9.0, velocityNorm));
-	for(int i = 0; i < 9; i++) {
+	// More blobs appear when drawing
+	int numBlobs = int(mix(5.0, 9.0, velocityNorm) + isDrawing * 1.0);
+	for(int i = 0; i < 10; i++) {
 		if(i >= numBlobs) break;
 
-		// Smoother rotation speed (reduced erratic spinning)
+		// Rotation speed (unchanged by drawing state)
 		float baseRotation = time * 0.8;
 		float velocityRotation = time * velocityNorm * 0.4;
 		float angle = float(i) * 6.28 / float(numBlobs) + baseRotation + velocityRotation;
 
-		// More dynamic radius based on velocity
-		float baseRadius = mix(0.2, 0.5, velocityNorm);
-		float radiusVariation = sin(time * 1.5 + float(i) * 0.8) * mix(0.05, 0.15, velocityNorm);
-		float radius = baseRadius + radiusVariation;
+		// Radius expands outward when drawing
+		float baseRadius = mix(0.2, 0.5, velocityNorm) + isDrawing * 0.075;
+		float radiusVariation = sin(time * (1.5 + isDrawing * 0.5) + float(i) * 0.8) * mix(0.05, 0.15, velocityNorm);
+		// Additional chaotic movement when drawing (very subtle)
+		float chaoticRadius = sin(time * 4.0 + float(i) * 2.1) * cos(time * 3.5 + float(i) * 1.7) * 0.003 * isDrawing;
+		float radius = baseRadius + radiusVariation + chaoticRadius;
 		vec2 orbPos = vec2(cos(angle), sin(angle)) * radius;
 
-		// Blob size grows more with velocity
-		float baseBlobSize = mix(0.08, 0.18, velocityNorm);
-		float sizeVariation = sin(time * 2.5 + float(i) * 0.6) * mix(0.02, 0.05, velocityNorm);
-		float blobSize = baseBlobSize + sizeVariation;
+		// Blobs grow and shrink more dramatically when drawing
+		float baseBlobSize = mix(0.08, 0.18, velocityNorm) + isDrawing * 0.04;
+		float sizeVariation = sin(time * (2.5 + isDrawing * 1.0) + float(i) * 0.6) * mix(0.02, 0.05, velocityNorm);
+		float drawingGrowth = sin(time * 5.0 + float(i) * 1.3) * 0.03 * isDrawing;
+		float blobSize = baseBlobSize + sizeVariation + drawingGrowth;
 		float blobDist = length(coord - orbPos) - blobSize;
 
-		// Smooth union for metaball effect (tighter blend when static)
-		float blendAmount = mix(0.15, 0.3, velocityNorm);
+		// More fluid blending when drawing
+		float blendAmount = mix(0.15, 0.3, velocityNorm) + isDrawing * 0.075;
 		sdf = smin(sdf, blobDist, blendAmount);
 	}
 
-	// Swirling tendrils (more active when moving)
-	vec2 noiseCoord = coord * 3.0;
-	noiseCoord += vec2(time * 0.3, time * 0.2) * energy;
+	// Swirling tendrils with zoom effect when drawing
+	// Zoom in by scaling noise coordinates when drawing
+	float noiseZoom = 3.0 + isDrawing * 0.5;
+	vec2 noiseCoord = coord * noiseZoom;
+	noiseCoord += vec2(time * 0.3, time * 0.2);
 	float swirl = fbm(noiseCoord) * 2.0 - 1.0;
 
 	// Distort SDF with noise (less distortion when static)
@@ -329,10 +342,12 @@ void main() {
 	// Dynamic color based on position, time, and velocity
 	float hueSpeed = mix(0.2, 0.6, velocityNorm);
 	float hue = mod(time * hueSpeed + atan(coord.y, coord.x) / 6.28 + swirl * 0.3, 1.0);
-	vec3 mainColor = hsv2rgb(vec3(hue, mix(0.7, 0.9, velocityNorm), 1.0));
+	// Lower saturation to reduce rainbow halo intensity
+	float saturation = mix(0.7, 0.75, velocityNorm);
+	vec3 mainColor = hsv2rgb(vec3(hue, saturation, 1.0));
 
-	// Secondary color for variation
-	vec3 accentColor = hsv2rgb(vec3(mod(hue + 0.5, 1.0), 0.9, 1.2));
+	// Secondary color for variation (also less saturated)
+	vec3 accentColor = hsv2rgb(vec3(mod(hue + 0.5, 1.0), 0.75, 1.2));
 
 	// Mix colors based on intensity layers
 	vec3 finalColor = mainColor * intensity;
@@ -348,8 +363,9 @@ void main() {
 	float edge = smoothstep(0.05, -0.05, sdf) - smoothstep(0.15, 0.05, sdf);
 	finalColor += accentColor * edge * energy;
 
-	// Global pulse (more pronounced when moving)
-	float globalPulse = sin(time * 2.5) * (0.1 + velocityNorm * 0.1) + 0.9;
+	// Global pulse (more pronounced when drawing)
+	float pulseIntensity = (0.1 + velocityNorm * 0.1 + isDrawing * 0.075);
+	float globalPulse = sin(time * (2.5 + isDrawing * 0.75)) * pulseIntensity + 0.9;
 	finalColor *= globalPulse;
 
 	// Alpha based on total intensity and energy
@@ -632,6 +648,24 @@ func (g *Game) addPoint(x, y float32) {
 	}
 }
 
+func (g *Game) spawnCursorSparkles(x, y float32) {
+	// Spawn magical spark particles around cursor
+	for range 3 {
+		angle := rand.Float64() * 2 * math.Pi
+		speed := rand.Float32()*80 + 40
+		g.particles = append(g.particles, Particle{
+			X:       x + (rand.Float32()-0.5)*8,
+			Y:       y + (rand.Float32()-0.5)*8,
+			VX:      float32(math.Cos(angle)) * speed,
+			VY:      float32(math.Sin(angle))*speed - 30, // Slight upward bias
+			Life:    0.8,
+			MaxLife: 0.8,
+			Size:    rand.Float32()*8 + 6,
+			Hue:     rand.Float32(),
+		})
+	}
+}
+
 func (g *Game) updateParticles(dt float32) {
 	// Update particles
 	for i := 0; i < len(g.particles); i++ {
@@ -654,10 +688,14 @@ func (g *Game) updateCursor(dt float32, window *WaylandWindow) {
 	x, y := window.GetCursorPos()
 	fx, fy := float32(x), float32(y)
 
-	// Calculate velocity
+	// Calculate instantaneous velocity
 	dx := fx - g.lastCursorX
 	dy := fy - g.lastCursorY
 	g.cursorVelocity = float32(math.Sqrt(float64(dx*dx + dy*dy)))
+
+	// Smooth velocity to prevent jittering
+	velocityDiff := g.cursorVelocity - g.smoothVelocity
+	g.smoothVelocity += velocityDiff * 0.2 // Smooth velocity transitions
 
 	// Calculate rotation angle from movement direction
 	if g.cursorVelocity > 0.5 { // Only update rotation if moving
@@ -675,6 +713,19 @@ func (g *Game) updateCursor(dt float32, window *WaylandWindow) {
 		smoothFactor := float32(0.08) // Lower = more smoothing
 		g.smoothRotation += angleDiff * smoothFactor
 	}
+
+	// Smooth drawing state with ease-out
+	var targetDrawing float32
+	if g.isDrawing {
+		targetDrawing = 1.0
+	} else {
+		targetDrawing = 0.0
+	}
+
+	// Ease out cubic: 1 - (1-t)^3
+	diff := targetDrawing - g.smoothDrawing
+	t := float32(0.0375) // Transition speed (4x slower)
+	g.smoothDrawing += diff * t
 
 	g.lastCursorX = fx
 	g.lastCursorY = fy
@@ -875,10 +926,13 @@ func (g *Game) drawCursorGlow(window *WaylandWindow, cursorX, cursorY, currentTi
 	gl.Uniform1f(timeLoc, currentTime)
 
 	velocityLoc := gl.GetUniformLocation(g.cursorGlowProgram, gl.Str("velocity\x00"))
-	gl.Uniform1f(velocityLoc, g.cursorVelocity)
+	gl.Uniform1f(velocityLoc, g.smoothVelocity)
 
 	rotationLoc := gl.GetUniformLocation(g.cursorGlowProgram, gl.Str("rotation\x00"))
 	gl.Uniform1f(rotationLoc, g.smoothRotation)
+
+	isDrawingLoc := gl.GetUniformLocation(g.cursorGlowProgram, gl.Str("isDrawing\x00"))
+	gl.Uniform1f(isDrawingLoc, g.smoothDrawing)
 
 	// Draw quad
 	gl.BindVertexArray(g.cursorGlowVAO)
@@ -924,6 +978,8 @@ func main() {
 	game.lastCursorX = float32(x)
 	game.lastCursorY = float32(y)
 	game.smoothRotation = 0.0
+	game.smoothDrawing = 0.0
+	game.smoothVelocity = 0.0
 
 	// Main loop
 	for !window.ShouldClose() {
@@ -959,6 +1015,8 @@ func main() {
 		if game.isDrawing {
 			x, y := window.GetCursorPos()
 			game.addPoint(float32(x), float32(y))
+			// Spawn magical sparkles at cursor
+			game.spawnCursorSparkles(float32(x), float32(y))
 		}
 
 		game.updateParticles(dt)
