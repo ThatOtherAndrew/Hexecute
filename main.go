@@ -3,6 +3,8 @@ package main
 import (
 	"image/color"
 	"log"
+	"os"
+	"os/exec"
 
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/hajimehoshi/ebiten/v2/vector"
@@ -56,6 +58,11 @@ func (g *Game) Layout(outsideWidth, outsideHeight int) (screenWidth, screenHeigh
 }
 
 func main() {
+	// make hyprland play nice
+	if os.Getenv("HYPRLAND_INSTANCE_SIGNATURE") != "" {
+		exec.Command("hyprctl", "keyword", "windowrulev2", "center,pin,noborder,noanim,noblur,title:^(hexecute)$").Run()
+	}
+
 	monitorWidth, monitorHeight := ebiten.Monitor().Size()
 
 	ebiten.SetWindowSize(monitorWidth, monitorHeight)
