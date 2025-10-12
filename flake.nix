@@ -17,27 +17,7 @@
 
         packages = with pkgs; [
           go
-
-          # Build deps
-          libGL
-          libxxf86vm
-          pkg-config
-          SDL2
-          sdl3
-
-          # X11
-          xorg.libXi
-          xorg.libXcursor
-          xorg.libXrandr
-          xorg.libXinerama
-
-          # Wayland
-          wayland
-          libxkbcommon
         ];
-
-        LD_LIBRARY_PATH = "${pkgs.lib.makeLibraryPath [ pkgs.libGL pkgs.libGLU
-       ]}";
       };
     };
 }
