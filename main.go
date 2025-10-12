@@ -4,8 +4,6 @@ import (
 	"log"
 	"math"
 	"math/rand"
-	"os"
-	"os/exec"
 	"runtime"
 	"time"
 
@@ -37,6 +35,9 @@ type Game struct {
 	particleVAO     uint32
 	particleVBO     uint32
 	particleProgram uint32
+	flashVAO        uint32
+	flashVBO        uint32
+	flashProgram    uint32
 	startTime       time.Time
 }
 
@@ -148,6 +149,26 @@ void main() {
 }
 ` + "\x00"
 
+const flashVertexShader = `
+#version 410 core
+layout (location = 0) in vec2 position;
+
+void main() {
+	gl_Position = vec4(position, 0.0, 1.0);
+}
+` + "\x00"
+
+const flashFragmentShader = `
+#version 410 core
+out vec4 FragColor;
+
+uniform float alpha;
+
+void main() {
+	FragColor = vec4(255.0, 255.0, 255.0, alpha);
+}
+` + "\x00"
+
 func init() {
 	runtime.LockOSThread()
 }
@@ -256,6 +277,54 @@ func (g *Game) initGL() error {
 
 	gl.BindVertexArray(0)
 
+	// Compile flash shaders
+	flashVertShader, err := compileShader(flashVertexShader, gl.VERTEX_SHADER)
+	if err != nil {
+		return err
+	}
+	flashFragShader, err := compileShader(flashFragmentShader, gl.FRAGMENT_SHADER)
+	if err != nil {
+		return err
+	}
+
+	g.flashProgram = gl.CreateProgram()
+	gl.AttachShader(g.flashProgram, flashVertShader)
+	gl.AttachShader(g.flashProgram, flashFragShader)
+	gl.LinkProgram(g.flashProgram)
+
+	gl.GetProgramiv(g.flashProgram, gl.LINK_STATUS, &status)
+	if status == gl.FALSE {
+		var logLength int32
+		gl.GetProgramiv(g.flashProgram, gl.INFO_LOG_LENGTH, &logLength)
+		logMsg := make([]byte, logLength)
+		gl.GetProgramInfoLog(g.flashProgram, logLength, nil, &logMsg[0])
+		log.Fatalf("Failed to link flash program: %s", logMsg)
+	}
+
+	gl.DeleteShader(flashVertShader)
+	gl.DeleteShader(flashFragShader)
+
+	// Create VAO and VBO for flash overlay (fullscreen quad)
+	gl.GenVertexArrays(1, &g.flashVAO)
+	gl.GenBuffers(1, &g.flashVBO)
+
+	gl.BindVertexArray(g.flashVAO)
+	gl.BindBuffer(gl.ARRAY_BUFFER, g.flashVBO)
+
+	// Fullscreen quad vertices
+	quadVertices := []float32{
+		-1.0, -1.0,
+		1.0, -1.0,
+		-1.0, 1.0,
+		1.0, 1.0,
+	}
+	gl.BufferData(gl.ARRAY_BUFFER, len(quadVertices)*4, gl.Ptr(quadVertices), gl.STATIC_DRAW)
+
+	gl.VertexAttribPointer(0, 2, gl.FLOAT, false, 2*4, nil)
+	gl.EnableVertexAttribArray(0)
+
+	gl.BindVertexArray(0)
+
 	// Enable blending
 	gl.Enable(gl.BLEND)
 	gl.BlendFunc(gl.SRC_ALPHA, gl.ONE) // Additive blending for glow
@@ -358,6 +427,9 @@ func (g *Game) draw(window *glfw.Window) {
 
 	// Draw particles
 	g.drawParticles(window)
+
+	// Draw flash overlay
+	g.drawFlash(currentTime)
 }
 
 func (g *Game) drawLine(window *glfw.Window, baseThickness, baseAlpha, currentTime float32) {
@@ -481,12 +553,38 @@ func (g *Game) drawParticles(window *glfw.Window) {
 	gl.BindVertexArray(0)
 }
 
-func main() {
-	// Make Hyprland play nice
-	if os.Getenv("HYPRLAND_INSTANCE_SIGNATURE") != "" {
-		exec.Command("hyprctl", "keyword", "windowrulev2", "center,pin,noborder,noanim,noblur,title:^(hexecute)$").Run()
+func (g *Game) drawFlash(currentTime float32) {
+	// Flash duration and fade
+	flashDuration := float32(3.0) // 1.0 seconds
+	if currentTime > flashDuration {
+		return
 	}
 
+	// Ease-out quadratic easing (more gradual)
+	progress := currentTime / flashDuration
+	easedProgress := 1.0 - (1.0-progress)*(1.0-progress)
+	alpha := 1.0 - easedProgress
+
+	if alpha <= 0 {
+		return
+	}
+
+	// Switch to alpha blending for the flash overlay
+	gl.BlendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA)
+
+	gl.UseProgram(g.flashProgram)
+	alphaLoc := gl.GetUniformLocation(g.flashProgram, gl.Str("alpha\x00"))
+	gl.Uniform1f(alphaLoc, alpha)
+
+	gl.BindVertexArray(g.flashVAO)
+	gl.DrawArrays(gl.TRIANGLE_STRIP, 0, 4)
+	gl.BindVertexArray(0)
+
+	// Restore additive blending for subsequent draws
+	gl.BlendFunc(gl.SRC_ALPHA, gl.ONE)
+}
+
+func main() {
 	// Initialize GLFW
 	if err := glfw.Init(); err != nil {
 		log.Fatal("Failed to initialize GLFW:", err)
