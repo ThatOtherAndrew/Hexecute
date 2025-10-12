@@ -156,3 +156,22 @@ func pathDistance(A, B []Point) float64 {
 	}
 	return d / float64(len(A))
 }
+
+// Entry points
+
+const n = 64
+const size = 250.
+
+func ProcessStroke(points []Point) []Point {
+	// Step 1
+	points = resample(points, n)
+	// Step 3 (skipping rotation)
+	points = scaleTo(points, size)
+	points = translateTo(points, Point{X: 0, Y: 0})
+
+	return points
+}
+
+func UnistrokeRecognise(points []Point, templates [][]Point) (bestMatch int, bestScore float64) {
+	return recognise(points, templates, size)
+}

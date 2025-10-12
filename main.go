@@ -70,9 +70,9 @@ func (g *Game) Draw(screen *ebiten.Image) {
 	}
 
 	strokeOptions := &vector.StrokeOptions{
-		Width: 5,
-		// LineCap:  vector.LineCapRound,
-		// LineJoin: vector.LineJoinRound,
+		Width:    5,
+		LineCap:  vector.LineCapRound,
+		LineJoin: vector.LineJoinRound,
 	}
 	drawOptions := &vector.DrawPathOptions{
 		// AntiAlias: true,
