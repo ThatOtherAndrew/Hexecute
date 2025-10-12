@@ -166,14 +166,28 @@ void main() {
 }
 ` + "\x00"
 
-const flashFragmentShader = `
+const backgroundDimFragmentShader = `
 #version 410 core
 out vec4 FragColor;
 
 uniform float alpha;
+uniform vec2 cursorPos;
+uniform vec2 resolution;
 
 void main() {
-	FragColor = vec4(0.0, 0.0, 0.0, alpha);
+	// Calculate distance from cursor in screen space
+	vec2 fragCoord = gl_FragCoord.xy;
+	float dist = length(fragCoord - cursorPos);
+
+	// Create circular glow around cursor (flashlight effect)
+	float glowRadius = 300.0; // Radius of the glow
+	float glowFalloff = smoothstep(0.0, glowRadius, dist);
+
+	// Reduce alpha near cursor (more transparent = see through more)
+	float cursorTransparency = mix(0.3, 1.0, glowFalloff);
+
+	// Dimmed background with flashlight effect
+	FragColor = vec4(0., 0., 0., alpha * cursorTransparency);
 }
 ` + "\x00"
 
@@ -497,14 +511,14 @@ func (g *Game) initGL() error {
 	if err != nil {
 		return err
 	}
-	flashFragShader, err := compileShader(flashFragmentShader, gl.FRAGMENT_SHADER)
+	bgDimFragShader, err := compileShader(backgroundDimFragmentShader, gl.FRAGMENT_SHADER)
 	if err != nil {
 		return err
 	}
 
 	g.flashProgram = gl.CreateProgram()
 	gl.AttachShader(g.flashProgram, flashVertShader)
-	gl.AttachShader(g.flashProgram, flashFragShader)
+	gl.AttachShader(g.flashProgram, bgDimFragShader)
 	gl.LinkProgram(g.flashProgram)
 
 	gl.GetProgramiv(g.flashProgram, gl.LINK_STATUS, &status)
@@ -517,7 +531,7 @@ func (g *Game) initGL() error {
 	}
 
 	gl.DeleteShader(flashVertShader)
-	gl.DeleteShader(flashFragShader)
+	gl.DeleteShader(bgDimFragShader)
 
 	// Create VAO and VBO for flash overlay (fullscreen quad)
 	gl.GenVertexArrays(1, &g.flashVAO)
@@ -748,7 +762,10 @@ func (g *Game) draw(window *WaylandWindow) {
 
 	currentTime := float32(time.Since(g.startTime).Seconds())
 
-	// Draw cursor glow first (behind everything) - instant position
+	// Draw background first (underneath everything)
+	g.drawBackground(currentTime, window)
+
+	// Draw cursor glow (behind trails and particles) - instant position
 	x, y := window.GetCursorPos()
 	g.drawCursorGlow(window, float32(x), float32(y), currentTime)
 
@@ -762,9 +779,6 @@ func (g *Game) draw(window *WaylandWindow) {
 
 	// Draw particles
 	g.drawParticles(window)
-
-	// Draw flash overlay
-	g.drawFlash(currentTime)
 }
 
 func (g *Game) drawLine(window *WaylandWindow, baseThickness, baseAlpha, currentTime float32) {
@@ -888,28 +902,39 @@ func (g *Game) drawParticles(window *WaylandWindow) {
 	gl.BindVertexArray(0)
 }
 
-func (g *Game) drawFlash(currentTime float32) {
-	// Flash duration and fade
-	flashDuration := float32(3.0) // 1.0 seconds
-	if currentTime > flashDuration {
-		return
+func (g *Game) drawBackground(currentTime float32, window *WaylandWindow) {
+	// Background fade-in duration
+	fadeDuration := float32(1.0)
+	targetAlpha := float32(0.75) // Less translucent (was 0.6)
+
+	var alpha float32
+	if currentTime < fadeDuration {
+		// Ease-out quint: 1 - (1-t)^5 (more gradual)
+		progress := currentTime / fadeDuration
+		easedProgress := 1.0 - (1.0-progress)*(1.0-progress)*(1.0-progress)*(1.0-progress)*(1.0-progress)
+		alpha = easedProgress * targetAlpha
+	} else {
+		// Fade complete, stay at target alpha
+		alpha = targetAlpha
 	}
 
-	// Ease-out quadratic easing (more gradual)
-	progress := currentTime / flashDuration
-	easedProgress := 1.0 - (1.0-progress)*(1.0-progress)
-	alpha := 1.0 - easedProgress
+	// Get cursor position for flashlight effect
+	x, y := window.GetCursorPos()
+	width, height := window.GetSize()
 
-	if alpha <= 0 {
-		return
-	}
-
-	// Switch to alpha blending for the flash overlay
+	// Use alpha blending for the background
 	gl.BlendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA)
 
 	gl.UseProgram(g.flashProgram)
+
 	alphaLoc := gl.GetUniformLocation(g.flashProgram, gl.Str("alpha\x00"))
 	gl.Uniform1f(alphaLoc, alpha)
+
+	cursorPosLoc := gl.GetUniformLocation(g.flashProgram, gl.Str("cursorPos\x00"))
+	gl.Uniform2f(cursorPosLoc, float32(x), float32(float64(height)-y)) // Flip Y for OpenGL coordinates
+
+	resolutionLoc := gl.GetUniformLocation(g.flashProgram, gl.Str("resolution\x00"))
+	gl.Uniform2f(resolutionLoc, float32(width), float32(height))
 
 	gl.BindVertexArray(g.flashVAO)
 	gl.DrawArrays(gl.TRIANGLE_STRIP, 0, 4)
