@@ -24,7 +24,7 @@ type Particle struct {
 	Hue     float32
 }
 
-type Game struct {
+type Launcher struct {
 	points            []Point
 	particles         []Particle
 	isDrawing         bool
@@ -402,7 +402,7 @@ func init() {
 	runtime.LockOSThread()
 }
 
-func (g *Game) initGL() error {
+func (g *Launcher) initGL() error {
 	if err := gl.Init(); err != nil {
 		return err
 	}
@@ -630,7 +630,7 @@ func compileShader(source string, shaderType uint32) (uint32, error) {
 	return shader, nil
 }
 
-func (g *Game) addPoint(x, y float32) {
+func (g *Launcher) addPoint(x, y float32) {
 	newPoint := Point{X: x, Y: y, BornTime: time.Now()}
 
 	shouldAdd := false
@@ -671,7 +671,7 @@ func (g *Game) addPoint(x, y float32) {
 	}
 }
 
-func (g *Game) spawnCursorSparkles(x, y float32) {
+func (g *Launcher) spawnCursorSparkles(x, y float32) {
 	// Spawn magical spark particles around cursor
 	for range 3 {
 		angle := rand.Float64() * 2 * math.Pi
@@ -689,7 +689,7 @@ func (g *Game) spawnCursorSparkles(x, y float32) {
 	}
 }
 
-func (g *Game) updateParticles(dt float32) {
+func (g *Launcher) updateParticles(dt float32) {
 	// Update particles
 	for i := 0; i < len(g.particles); i++ {
 		p := &g.particles[i]
@@ -707,7 +707,7 @@ func (g *Game) updateParticles(dt float32) {
 	}
 }
 
-func (g *Game) updateCursor(dt float32, window *WaylandWindow) {
+func (g *Launcher) updateCursor(dt float32, window *WaylandWindow) {
 	x, y := window.GetCursorPos()
 	fx, fy := float32(x), float32(y)
 
@@ -757,7 +757,7 @@ func (g *Game) updateCursor(dt float32, window *WaylandWindow) {
 	g.lastCursorY = fy
 }
 
-func (g *Game) draw(window *WaylandWindow) {
+func (g *Launcher) draw(window *WaylandWindow) {
 	gl.Clear(gl.COLOR_BUFFER_BIT)
 
 	currentTime := float32(time.Since(g.startTime).Seconds())
@@ -781,7 +781,7 @@ func (g *Game) draw(window *WaylandWindow) {
 	g.drawParticles(window)
 }
 
-func (g *Game) drawLine(window *WaylandWindow, baseThickness, baseAlpha, currentTime float32) {
+func (g *Launcher) drawLine(window *WaylandWindow, baseThickness, baseAlpha, currentTime float32) {
 	if len(g.points) < 2 {
 		return
 	}
@@ -878,7 +878,7 @@ func (g *Game) drawLine(window *WaylandWindow, baseThickness, baseAlpha, current
 	gl.BindVertexArray(0)
 }
 
-func (g *Game) drawParticles(window *WaylandWindow) {
+func (g *Launcher) drawParticles(window *WaylandWindow) {
 	if len(g.particles) == 0 {
 		return
 	}
@@ -902,7 +902,7 @@ func (g *Game) drawParticles(window *WaylandWindow) {
 	gl.BindVertexArray(0)
 }
 
-func (g *Game) drawBackground(currentTime float32, window *WaylandWindow) {
+func (g *Launcher) drawBackground(currentTime float32, window *WaylandWindow) {
 	// Background fade-in duration
 	fadeDuration := float32(1.0)
 	targetAlpha := float32(0.75) // Less translucent (was 0.6)
@@ -944,8 +944,26 @@ func (g *Game) drawBackground(currentTime float32, window *WaylandWindow) {
 	gl.BlendFunc(gl.SRC_ALPHA, gl.ONE)
 }
 
-func (g *Game) drawCursorGlow(window *WaylandWindow, cursorX, cursorY, currentTime float32) {
+func (g *Launcher) drawCursorGlow(window *WaylandWindow, cursorX, cursorY, currentTime float32) {
 	width, height := window.GetSize()
+
+	// Elastic ease-out animation for startup
+	growDuration := float32(1.2)
+	var scale float32
+	if currentTime < growDuration {
+		t := currentTime / growDuration
+		// Elastic ease-out: slight overshoot then settle
+		c4 := (2.0 * math.Pi) / 3.0
+		if t == 0 {
+			scale = 0
+		} else if t >= 1 {
+			scale = 1
+		} else {
+			scale = float32(math.Pow(2, -10*float64(t))*math.Sin((float64(t)*10-0.75)*c4) + 1)
+		}
+	} else {
+		scale = 1.0
+	}
 
 	gl.UseProgram(g.cursorGlowProgram)
 
@@ -957,7 +975,7 @@ func (g *Game) drawCursorGlow(window *WaylandWindow, cursorX, cursorY, currentTi
 	gl.Uniform2f(resolutionLoc, float32(width), float32(height))
 
 	glowSizeLoc := gl.GetUniformLocation(g.cursorGlowProgram, gl.Str("glowSize\x00"))
-	gl.Uniform1f(glowSizeLoc, 80.0) // Glow radius in pixels (3x smaller)
+	gl.Uniform1f(glowSizeLoc, 80.0*scale) // Glow radius animated with elastic ease-out
 
 	timeLoc := gl.GetUniformLocation(g.cursorGlowProgram, gl.Str("time\x00"))
 	gl.Uniform1f(timeLoc, currentTime)
@@ -985,15 +1003,15 @@ func main() {
 	}
 	defer window.Destroy()
 
-	// Initialize game and OpenGL
-	game := &Game{
+	// Initialize launcher and OpenGL
+	launcher := &Launcher{
 		points:    []Point{},
 		particles: []Particle{},
 		isDrawing: false,
 		startTime: time.Now(),
 	}
 
-	if err := game.initGL(); err != nil {
+	if err := launcher.initGL(); err != nil {
 		log.Fatal("Failed to initialize OpenGL:", err)
 	}
 
@@ -1012,11 +1030,11 @@ func main() {
 
 	// Initialize cursor position
 	x, y := window.GetCursorPos()
-	game.lastCursorX = float32(x)
-	game.lastCursorY = float32(y)
-	game.smoothRotation = 0.0
-	game.smoothDrawing = 0.0
-	game.smoothVelocity = 0.0
+	launcher.lastCursorX = float32(x)
+	launcher.lastCursorY = float32(y)
+	launcher.smoothRotation = 0.0
+	launcher.smoothDrawing = 0.0
+	launcher.smoothVelocity = 0.0
 
 	// Main loop
 	for !window.ShouldClose() {
@@ -1029,7 +1047,7 @@ func main() {
 		window.PollEvents()
 
 		// Update cursor smoothing and velocity
-		game.updateCursor(dt, window)
+		launcher.updateCursor(dt, window)
 
 		// Handle keyboard
 		if key, state, hasKey := window.GetLastKey(); hasKey {
@@ -1042,24 +1060,24 @@ func main() {
 		// Handle mouse button
 		isPressed := window.GetMouseButton()
 		if isPressed && !wasPressed {
-			game.isDrawing = true
+			launcher.isDrawing = true
 		} else if !isPressed && wasPressed {
-			game.isDrawing = false
+			launcher.isDrawing = false
 		}
 		wasPressed = isPressed
 
 		// Update
-		if game.isDrawing {
+		if launcher.isDrawing {
 			x, y := window.GetCursorPos()
-			game.addPoint(float32(x), float32(y))
+			launcher.addPoint(float32(x), float32(y))
 			// Spawn magical sparkles at cursor
-			game.spawnCursorSparkles(float32(x), float32(y))
+			launcher.spawnCursorSparkles(float32(x), float32(y))
 		}
 
-		game.updateParticles(dt)
+		launcher.updateParticles(dt)
 
 		// Draw
-		game.draw(window)
+		launcher.draw(window)
 
 		// Swap buffers
 		window.SwapBuffers()
