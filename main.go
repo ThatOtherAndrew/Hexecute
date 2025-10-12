@@ -28,7 +28,27 @@ func (g *Game) Update() error {
 			g.isDrawing = true
 		}
 		x, y := ebiten.CursorPosition()
-		g.points = append(g.points, Point{X: float32(x), Y: float32(y)})
+		newPoint := Point{X: float32(x), Y: float32(y)}
+
+		// Only add if cursor moved enough (> 2 pixels) or it's the first point
+		shouldAdd := false
+		if len(g.points) == 0 {
+			shouldAdd = true
+		} else {
+			lastPoint := g.points[len(g.points)-1]
+			dx := newPoint.X - lastPoint.X
+			dy := newPoint.Y - lastPoint.Y
+			if dx*dx+dy*dy > 4 { // distance > 2 pixels
+				shouldAdd = true
+			}
+		}
+
+		if shouldAdd {
+			g.points = append(g.points, newPoint)
+			if len(g.points) > 512 {
+				g.points = g.points[len(g.points)-512:]
+			}
+		}
 	} else if g.isDrawing {
 		log.Println("Stop drawing")
 		g.isDrawing = false
@@ -39,18 +59,27 @@ func (g *Game) Update() error {
 }
 
 func (g *Game) Draw(screen *ebiten.Image) {
-	for i := 0; i < len(g.points)-1; i++ {
-		vector.StrokeLine(
-			screen,
-			g.points[i].X,
-			g.points[i].Y,
-			g.points[i+1].X,
-			g.points[i+1].Y,
-			5,
-			color.RGBA{255, 0, 255, 255},
-			false,
-		)
+	if len(g.points) == 0 {
+		return
 	}
+
+	var path vector.Path
+	path.MoveTo(g.points[0].X, g.points[0].Y)
+	for i := 1; i < len(g.points); i++ {
+		path.LineTo(g.points[i].X, g.points[i].Y)
+	}
+
+	strokeOptions := &vector.StrokeOptions{
+		Width: 5,
+		// LineCap:  vector.LineCapRound,
+		// LineJoin: vector.LineJoinRound,
+	}
+	drawOptions := &vector.DrawPathOptions{
+		// AntiAlias: true,
+	}
+	drawOptions.ColorScale.ScaleWithColor(color.RGBA{255, 0, 255, 255})
+
+	vector.StrokePath(screen, &path, strokeOptions, drawOptions)
 }
 
 func (g *Game) Layout(outsideWidth, outsideHeight int) (screenWidth, screenHeight int) {
@@ -69,6 +98,7 @@ func main() {
 	ebiten.SetWindowTitle("hexecute")
 	ebiten.SetWindowDecorated(false)
 	ebiten.SetWindowFloating(true)
+	ebiten.SetTPS(ebiten.SyncWithFPS)
 
 	game := &Game{
 		points:    []Point{},
