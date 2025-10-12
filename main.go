@@ -1,43 +1,76 @@
 package main
 
-import rl "github.com/gen2brain/raylib-go/raylib"
+import (
+	"image/color"
+	"log"
+
+	"github.com/hajimehoshi/ebiten/v2"
+	"github.com/hajimehoshi/ebiten/v2/vector"
+)
+
+type Game struct {
+	points    []Point
+	isDrawing bool
+}
+
+type Point struct {
+	X, Y float32
+}
+
+func (g *Game) Update() error {
+	isMouseDown := ebiten.IsMouseButtonPressed(ebiten.MouseButtonLeft)
+
+	if isMouseDown {
+		if !g.isDrawing {
+			log.Println("Start drawing")
+			g.isDrawing = true
+		}
+		x, y := ebiten.CursorPosition()
+		g.points = append(g.points, Point{X: float32(x), Y: float32(y)})
+	} else if g.isDrawing {
+		log.Println("Stop drawing")
+		g.isDrawing = false
+		g.points = []Point{}
+	}
+
+	return nil
+}
+
+func (g *Game) Draw(screen *ebiten.Image) {
+	for i := 0; i < len(g.points)-1; i++ {
+		vector.StrokeLine(
+			screen,
+			g.points[i].X,
+			g.points[i].Y,
+			g.points[i+1].X,
+			g.points[i+1].Y,
+			5,
+			color.RGBA{255, 0, 255, 255},
+			false,
+		)
+	}
+}
+
+func (g *Game) Layout(outsideWidth, outsideHeight int) (screenWidth, screenHeight int) {
+	return outsideWidth, outsideHeight
+}
 
 func main() {
-	rl.SetConfigFlags(rl.FlagWindowTransparent)
-	rl.InitWindow(500, 500, "hexecute")
-	defer rl.CloseWindow()
+	monitorWidth, monitorHeight := ebiten.Monitor().Size()
 
-	points := []rl.Vector2{}
-	isDrawing := false
+	ebiten.SetWindowSize(monitorWidth, monitorHeight)
+	ebiten.SetWindowTitle("hexecute")
+	ebiten.SetWindowDecorated(false)
+	ebiten.SetWindowFloating(true)
 
-	println("WindowScaleDPI:", rl.GetWindowScaleDPI().X, rl.GetWindowScaleDPI().Y)
-	println("Monitor:", rl.GetMonitorWidth(0), rl.GetMonitorHeight(0))
-	println("Screen:", rl.GetScreenWidth(), rl.GetScreenHeight())
-	println("Render:", rl.GetRenderWidth(), rl.GetRenderHeight())
+	game := &Game{
+		points:    []Point{},
+		isDrawing: false,
+	}
 
-	for !rl.WindowShouldClose() {
-		rl.BeginDrawing()
-		rl.EnableColorBlend()
-		rl.ClearBackground(rl.Blank)
-		rl.DrawRectangle(0, 0, 500, 500, rl.Fade(rl.Red, 0.5))
+	gameOptions := &ebiten.RunGameOptions{ScreenTransparent: true}
 
-		isMouseDown := rl.IsMouseButtonDown(rl.MouseLeftButton)
-		if isMouseDown {
-			if !isDrawing { // on mouse down
-				println("Start drawing")
-				isDrawing = true
-			}
-			points = append(points, rl.GetMousePosition())
-		} else if isDrawing { // on mouse up
-			println("Stop drawing")
-			isDrawing = false
-			points = []rl.Vector2{}
-		}
-
-		for i := 1; i < len(points)-1; i++ {
-			rl.DrawLineEx(points[i], points[i+1], 5, rl.Magenta)
-		}
-
-		rl.EndDrawing()
+	if err := ebiten.RunGameWithOptions(game, gameOptions); err != nil {
+		log.Fatal(err)
 	}
 }
