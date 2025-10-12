@@ -287,10 +287,14 @@ void main() {
 	float centralDist = length(coord) - centralSize * pulse;
 	sdf = centralDist;
 
-	// More blobs appear when drawing
-	int numBlobs = int(mix(5.0, 9.0, velocityNorm) + isDrawing * 1.0);
+	// More blobs appear when drawing (smooth float to avoid discrete jumps)
+	float numBlobsFloat = mix(5.0, 9.0, velocityNorm) + isDrawing * 1.0;
+	int numBlobs = int(numBlobsFloat);
+	float blobFade = fract(numBlobsFloat); // Fade in/out the last blob
+
 	for(int i = 0; i < 10; i++) {
-		if(i >= numBlobs) break;
+		if(i > numBlobs) break; // One extra for fade
+		if(i == numBlobs && blobFade < 0.01) break; // Skip if fade is negligible
 
 		// Rotation speed (unchanged by drawing state)
 		float baseRotation = time * 0.8;
@@ -311,6 +315,11 @@ void main() {
 		float drawingGrowth = sin(time * 5.0 + float(i) * 1.3) * 0.03 * isDrawing;
 		float blobSize = baseBlobSize + sizeVariation + drawingGrowth;
 		float blobDist = length(coord - orbPos) - blobSize;
+
+		// Fade out the last blob smoothly
+		if(i == numBlobs) {
+			blobDist += (1.0 - blobFade) * 0.5; // Make it smaller/further away as it fades
+		}
 
 		// More fluid blending when drawing
 		float blendAmount = mix(0.15, 0.3, velocityNorm) + isDrawing * 0.075;
@@ -698,7 +707,8 @@ func (g *Game) updateCursor(dt float32, window *WaylandWindow) {
 	g.smoothVelocity += velocityDiff * 0.2 // Smooth velocity transitions
 
 	// Calculate rotation angle from movement direction
-	if g.cursorVelocity > 0.5 { // Only update rotation if moving
+	// Always update rotation, but with influence based on velocity
+	if g.cursorVelocity > 0.1 { // Only update when there's meaningful movement
 		targetRotation := float32(math.Atan2(float64(dy), float64(dx)))
 
 		// Smooth the rotation with lerp, handling angle wrapping
@@ -710,7 +720,9 @@ func (g *Game) updateCursor(dt float32, window *WaylandWindow) {
 			angleDiff += 2 * math.Pi
 		}
 
-		smoothFactor := float32(0.08) // Lower = more smoothing
+		// Smooth factor varies with velocity - slower movement = slower rotation update
+		velocityFactor := float32(math.Min(float64(g.smoothVelocity/5.0), 1.0))
+		smoothFactor := 0.03 + velocityFactor*0.08 // 0.03 to 0.11 based on velocity
 		g.smoothRotation += angleDiff * smoothFactor
 	}
 
