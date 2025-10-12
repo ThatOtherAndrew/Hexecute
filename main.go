@@ -367,7 +367,7 @@ func (g *Game) addPoint(x, y float32) {
 			shouldAdd = true
 
 			// Spawn particles along the line
-			for i := 0; i < 3; i++ {
+			for range 3 {
 				angle := rand.Float64() * 2 * math.Pi
 				speed := rand.Float32()*50 + 20
 				g.particles = append(g.particles, Particle{
@@ -418,7 +418,7 @@ func (g *Game) draw(window *glfw.Window) {
 	currentTime := float32(time.Since(g.startTime).Seconds())
 
 	// Draw main line with glow (multiple passes)
-	for pass := 0; pass < 3; pass++ {
+	for pass := range 3 {
 		thickness := float32(15 + pass*8)         // Increasing thickness for glow layers
 		alpha := float32(0.4 - float32(pass)*0.1) // Decreasing alpha for outer glow
 
