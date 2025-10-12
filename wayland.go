@@ -239,6 +239,8 @@ void pointer_enter(void *data, struct wl_pointer *pointer, uint32_t serial,
                   struct wl_surface *surface, wl_fixed_t x, wl_fixed_t y) {
     mouse_x = wl_fixed_to_double(x);
     mouse_y = wl_fixed_to_double(y);
+    // Hide the cursor by setting it to NULL
+    wl_pointer_set_cursor(pointer, serial, NULL, 0, 0);
 }
 
 void pointer_leave(void *data, struct wl_pointer *pointer, uint32_t serial,

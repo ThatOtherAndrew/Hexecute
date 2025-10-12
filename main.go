@@ -25,19 +25,26 @@ type Particle struct {
 }
 
 type Game struct {
-	points          []Point
-	particles       []Particle
-	isDrawing       bool
-	vao             uint32
-	vbo             uint32
-	program         uint32
-	particleVAO     uint32
-	particleVBO     uint32
-	particleProgram uint32
-	flashVAO        uint32
-	flashVBO        uint32
-	flashProgram    uint32
-	startTime       time.Time
+	points            []Point
+	particles         []Particle
+	isDrawing         bool
+	vao               uint32
+	vbo               uint32
+	program           uint32
+	particleVAO       uint32
+	particleVBO       uint32
+	particleProgram   uint32
+	flashVAO          uint32
+	flashVBO          uint32
+	flashProgram      uint32
+	cursorGlowVAO     uint32
+	cursorGlowVBO     uint32
+	cursorGlowProgram uint32
+	startTime         time.Time
+	lastCursorX       float32
+	lastCursorY       float32
+	cursorVelocity    float32
+	smoothRotation    float32
 }
 
 const vertexShader = `
@@ -164,7 +171,191 @@ out vec4 FragColor;
 uniform float alpha;
 
 void main() {
-	FragColor = vec4(255.0, 255.0, 255.0, alpha);
+	FragColor = vec4(0.0, 0.0, 0.0, alpha);
+}
+` + "\x00"
+
+const cursorGlowVertexShader = `
+#version 410 core
+layout (location = 0) in vec2 position;
+
+uniform vec2 cursorPos;
+uniform vec2 resolution;
+uniform float glowSize;
+uniform float rotation;
+
+out vec2 vTexCoord;
+
+void main() {
+	// Apply rotation to position
+	float c = cos(rotation);
+	float s = sin(rotation);
+	vec2 rotatedPos = vec2(
+		position.x * c - position.y * s,
+		position.x * s + position.y * c
+	);
+
+	// Scale quad around cursor position
+	vec2 worldPos = cursorPos + rotatedPos * glowSize;
+	vec2 normalized = (worldPos / resolution) * 2.0 - 1.0;
+	normalized.y = -normalized.y;
+	gl_Position = vec4(normalized, 0.0, 1.0);
+	// Convert -1..1 to 0..1 for proper UV coordinates
+	vTexCoord = rotatedPos * 0.5 + 0.5;
+}
+` + "\x00"
+
+const cursorGlowFragmentShader = `
+#version 410 core
+in vec2 vTexCoord;
+out vec4 FragColor;
+
+uniform float time;
+uniform float velocity;
+
+vec3 hsv2rgb(vec3 c) {
+	vec4 K = vec4(1.0, 2.0 / 3.0, 1.0 / 3.0, 3.0);
+	vec3 p = abs(fract(c.xxx + K.xyz) * 6.0 - K.www);
+	return c.z * mix(K.xxx, clamp(p - K.xxx, 0.0, 1.0), c.y);
+}
+
+// Smooth minimum for metaball blending
+float smin(float a, float b, float k) {
+	float h = clamp(0.5 + 0.5 * (b - a) / k, 0.0, 1.0);
+	return mix(b, a, h) - k * h * (1.0 - h);
+}
+
+// Simple hash for pseudo-random noise
+float hash(vec2 p) {
+	p = fract(p * vec2(123.34, 456.21));
+	p += dot(p, p + 45.32);
+	return fract(p.x * p.y);
+}
+
+// Smooth noise
+float noise(vec2 p) {
+	vec2 i = floor(p);
+	vec2 f = fract(p);
+	f = f * f * (3.0 - 2.0 * f);
+
+	float a = hash(i);
+	float b = hash(i + vec2(1.0, 0.0));
+	float c = hash(i + vec2(0.0, 1.0));
+	float d = hash(i + vec2(1.0, 1.0));
+
+	return mix(mix(a, b, f.x), mix(c, d, f.x), f.y);
+}
+
+// Fractal noise
+float fbm(vec2 p) {
+	float value = 0.0;
+	float amplitude = 0.5;
+	float frequency = 1.0;
+
+	for(int i = 0; i < 4; i++) {
+		value += amplitude * noise(p * frequency);
+		frequency *= 2.0;
+		amplitude *= 0.5;
+	}
+	return value;
+}
+
+void main() {
+	// Center coordinates from -1 to 1
+	vec2 coord = vTexCoord * 2.0 - 1.0;
+
+	// Velocity-based parameters (0 = static, 1 = fast)
+	float velocityNorm = clamp(velocity * 0.01, 0.0, 1.0);
+
+	// Energy level: high when moving, low when static
+	float energy = mix(0.3, 1.0, velocityNorm);
+
+	// Create multiple animated orbs for metaball effect
+	float sdf = 1000.0; // Start with large distance
+
+	// Central orb size based on velocity (smaller when static)
+	float centralSize = mix(0.15, 0.35, velocityNorm);
+	float pulse = sin(time * (3.0 + velocityNorm * 2.0)) * 0.1 * energy + 0.9;
+	float centralDist = length(coord) - centralSize * pulse;
+	sdf = centralDist;
+
+	// Orbiting energy blobs (fewer and closer when static, more when moving)
+	int numBlobs = int(mix(5.0, 9.0, velocityNorm));
+	for(int i = 0; i < 9; i++) {
+		if(i >= numBlobs) break;
+
+		// Smoother rotation speed (reduced erratic spinning)
+		float baseRotation = time * 0.8;
+		float velocityRotation = time * velocityNorm * 0.4;
+		float angle = float(i) * 6.28 / float(numBlobs) + baseRotation + velocityRotation;
+
+		// More dynamic radius based on velocity
+		float baseRadius = mix(0.2, 0.5, velocityNorm);
+		float radiusVariation = sin(time * 1.5 + float(i) * 0.8) * mix(0.05, 0.15, velocityNorm);
+		float radius = baseRadius + radiusVariation;
+		vec2 orbPos = vec2(cos(angle), sin(angle)) * radius;
+
+		// Blob size grows more with velocity
+		float baseBlobSize = mix(0.08, 0.18, velocityNorm);
+		float sizeVariation = sin(time * 2.5 + float(i) * 0.6) * mix(0.02, 0.05, velocityNorm);
+		float blobSize = baseBlobSize + sizeVariation;
+		float blobDist = length(coord - orbPos) - blobSize;
+
+		// Smooth union for metaball effect (tighter blend when static)
+		float blendAmount = mix(0.15, 0.3, velocityNorm);
+		sdf = smin(sdf, blobDist, blendAmount);
+	}
+
+	// Swirling tendrils (more active when moving)
+	vec2 noiseCoord = coord * 3.0;
+	noiseCoord += vec2(time * 0.3, time * 0.2) * energy;
+	float swirl = fbm(noiseCoord) * 2.0 - 1.0;
+
+	// Distort SDF with noise (less distortion when static)
+	sdf += swirl * 0.1 * energy;
+
+	// Convert SDF to intensity
+	float intensity = exp(-max(sdf, 0.0) * 4.0);
+	float outerGlow = exp(-max(sdf, 0.0) * 1.5) * 0.4 * energy;
+	float innerGlow = exp(-max(sdf, 0.0) * 8.0) * 0.8;
+
+	float totalIntensity = intensity + outerGlow + innerGlow;
+
+	// Fade out at edges to eliminate square boundary
+	float edgeDist = max(abs(coord.x), abs(coord.y));
+	float edgeFade = smoothstep(1.0, 0.7, edgeDist);
+	totalIntensity *= edgeFade;
+
+	// Dynamic color based on position, time, and velocity
+	float hueSpeed = mix(0.2, 0.6, velocityNorm);
+	float hue = mod(time * hueSpeed + atan(coord.y, coord.x) / 6.28 + swirl * 0.3, 1.0);
+	vec3 mainColor = hsv2rgb(vec3(hue, mix(0.7, 0.9, velocityNorm), 1.0));
+
+	// Secondary color for variation
+	vec3 accentColor = hsv2rgb(vec3(mod(hue + 0.5, 1.0), 0.9, 1.2));
+
+	// Mix colors based on intensity layers
+	vec3 finalColor = mainColor * intensity;
+	finalColor += accentColor * innerGlow;
+	finalColor += mainColor * 0.5 * outerGlow;
+
+	// Energy sparkles (more when moving)
+	float sparkle = noise(coord * 20.0 + time * 5.0 * energy);
+	sparkle = smoothstep(0.85, 1.0, sparkle) * totalIntensity * velocityNorm;
+	finalColor += vec3(1.0) * sparkle;
+
+	// Edge highlighting for more definition
+	float edge = smoothstep(0.05, -0.05, sdf) - smoothstep(0.15, 0.05, sdf);
+	finalColor += accentColor * edge * energy;
+
+	// Global pulse (more pronounced when moving)
+	float globalPulse = sin(time * 2.5) * (0.1 + velocityNorm * 0.1) + 0.9;
+	finalColor *= globalPulse;
+
+	// Alpha based on total intensity and energy
+	float alpha = clamp(totalIntensity * mix(0.8, 1.3, velocityNorm), 0.0, 1.0);
+
+	FragColor = vec4(finalColor, alpha * 0.95);
 }
 ` + "\x00"
 
@@ -324,6 +515,54 @@ func (g *Game) initGL() error {
 
 	gl.BindVertexArray(0)
 
+	// Compile cursor glow shaders
+	cursorGlowVertShader, err := compileShader(cursorGlowVertexShader, gl.VERTEX_SHADER)
+	if err != nil {
+		return err
+	}
+	cursorGlowFragShader, err := compileShader(cursorGlowFragmentShader, gl.FRAGMENT_SHADER)
+	if err != nil {
+		return err
+	}
+
+	g.cursorGlowProgram = gl.CreateProgram()
+	gl.AttachShader(g.cursorGlowProgram, cursorGlowVertShader)
+	gl.AttachShader(g.cursorGlowProgram, cursorGlowFragShader)
+	gl.LinkProgram(g.cursorGlowProgram)
+
+	gl.GetProgramiv(g.cursorGlowProgram, gl.LINK_STATUS, &status)
+	if status == gl.FALSE {
+		var logLength int32
+		gl.GetProgramiv(g.cursorGlowProgram, gl.INFO_LOG_LENGTH, &logLength)
+		logMsg := make([]byte, logLength)
+		gl.GetProgramInfoLog(g.cursorGlowProgram, logLength, nil, &logMsg[0])
+		log.Fatalf("Failed to link cursor glow program: %s", logMsg)
+	}
+
+	gl.DeleteShader(cursorGlowVertShader)
+	gl.DeleteShader(cursorGlowFragShader)
+
+	// Create VAO and VBO for cursor glow (quad)
+	gl.GenVertexArrays(1, &g.cursorGlowVAO)
+	gl.GenBuffers(1, &g.cursorGlowVBO)
+
+	gl.BindVertexArray(g.cursorGlowVAO)
+	gl.BindBuffer(gl.ARRAY_BUFFER, g.cursorGlowVBO)
+
+	// Quad vertices centered at origin (will be positioned by shader)
+	glowQuadVertices := []float32{
+		-1.0, -1.0,
+		1.0, -1.0,
+		-1.0, 1.0,
+		1.0, 1.0,
+	}
+	gl.BufferData(gl.ARRAY_BUFFER, len(glowQuadVertices)*4, gl.Ptr(glowQuadVertices), gl.STATIC_DRAW)
+
+	gl.VertexAttribPointer(0, 2, gl.FLOAT, false, 2*4, nil)
+	gl.EnableVertexAttribArray(0)
+
+	gl.BindVertexArray(0)
+
 	// Enable blending
 	gl.Enable(gl.BLEND)
 	gl.BlendFunc(gl.SRC_ALPHA, gl.ONE) // Additive blending for glow
@@ -411,15 +650,49 @@ func (g *Game) updateParticles(dt float32) {
 	}
 }
 
+func (g *Game) updateCursor(dt float32, window *WaylandWindow) {
+	x, y := window.GetCursorPos()
+	fx, fy := float32(x), float32(y)
+
+	// Calculate velocity
+	dx := fx - g.lastCursorX
+	dy := fy - g.lastCursorY
+	g.cursorVelocity = float32(math.Sqrt(float64(dx*dx + dy*dy)))
+
+	// Calculate rotation angle from movement direction
+	if g.cursorVelocity > 0.5 { // Only update rotation if moving
+		targetRotation := float32(math.Atan2(float64(dy), float64(dx)))
+
+		// Smooth the rotation with lerp, handling angle wrapping
+		angleDiff := targetRotation - g.smoothRotation
+		// Normalize angle difference to [-pi, pi]
+		if angleDiff > math.Pi {
+			angleDiff -= 2 * math.Pi
+		} else if angleDiff < -math.Pi {
+			angleDiff += 2 * math.Pi
+		}
+
+		smoothFactor := float32(0.08) // Lower = more smoothing
+		g.smoothRotation += angleDiff * smoothFactor
+	}
+
+	g.lastCursorX = fx
+	g.lastCursorY = fy
+}
+
 func (g *Game) draw(window *WaylandWindow) {
 	gl.Clear(gl.COLOR_BUFFER_BIT)
 
 	currentTime := float32(time.Since(g.startTime).Seconds())
 
+	// Draw cursor glow first (behind everything) - instant position
+	x, y := window.GetCursorPos()
+	g.drawCursorGlow(window, float32(x), float32(y), currentTime)
+
 	// Draw main line with glow (multiple passes)
 	for pass := range 3 {
-		thickness := float32(15 + pass*8)         // Increasing thickness for glow layers
-		alpha := float32(0.4 - float32(pass)*0.1) // Decreasing alpha for outer glow
+		thickness := float32(7 + pass*4)           // Increasing thickness for glow layers (half as wide)
+		alpha := float32(0.7 - float32(pass)*0.15) // Decreasing alpha for outer glow (brighter)
 
 		g.drawLine(window, thickness, alpha, currentTime)
 	}
@@ -583,6 +856,36 @@ func (g *Game) drawFlash(currentTime float32) {
 	gl.BlendFunc(gl.SRC_ALPHA, gl.ONE)
 }
 
+func (g *Game) drawCursorGlow(window *WaylandWindow, cursorX, cursorY, currentTime float32) {
+	width, height := window.GetSize()
+
+	gl.UseProgram(g.cursorGlowProgram)
+
+	// Set uniforms
+	cursorPosLoc := gl.GetUniformLocation(g.cursorGlowProgram, gl.Str("cursorPos\x00"))
+	gl.Uniform2f(cursorPosLoc, cursorX, cursorY)
+
+	resolutionLoc := gl.GetUniformLocation(g.cursorGlowProgram, gl.Str("resolution\x00"))
+	gl.Uniform2f(resolutionLoc, float32(width), float32(height))
+
+	glowSizeLoc := gl.GetUniformLocation(g.cursorGlowProgram, gl.Str("glowSize\x00"))
+	gl.Uniform1f(glowSizeLoc, 80.0) // Glow radius in pixels (3x smaller)
+
+	timeLoc := gl.GetUniformLocation(g.cursorGlowProgram, gl.Str("time\x00"))
+	gl.Uniform1f(timeLoc, currentTime)
+
+	velocityLoc := gl.GetUniformLocation(g.cursorGlowProgram, gl.Str("velocity\x00"))
+	gl.Uniform1f(velocityLoc, g.cursorVelocity)
+
+	rotationLoc := gl.GetUniformLocation(g.cursorGlowProgram, gl.Str("rotation\x00"))
+	gl.Uniform1f(rotationLoc, g.smoothRotation)
+
+	// Draw quad
+	gl.BindVertexArray(g.cursorGlowVAO)
+	gl.DrawArrays(gl.TRIANGLE_STRIP, 0, 4)
+	gl.BindVertexArray(0)
+}
+
 func main() {
 	// Create Wayland window with layer shell
 	window, err := NewWaylandWindow()
@@ -616,6 +919,12 @@ func main() {
 		window.SwapBuffers()
 	}
 
+	// Initialize cursor position
+	x, y := window.GetCursorPos()
+	game.lastCursorX = float32(x)
+	game.lastCursorY = float32(y)
+	game.smoothRotation = 0.0
+
 	// Main loop
 	for !window.ShouldClose() {
 		// Calculate delta time
@@ -625,6 +934,9 @@ func main() {
 
 		// Poll events
 		window.PollEvents()
+
+		// Update cursor smoothing and velocity
+		game.updateCursor(dt, window)
 
 		// Handle keyboard
 		if key, state, hasKey := window.GetLastKey(); hasKey {
