@@ -47,6 +47,8 @@ type Launcher struct {
 	smoothVelocity    float32
 	smoothRotation    float32
 	smoothDrawing     float32
+	isExiting         bool
+	exitStartTime     time.Time
 }
 
 const vertexShader = `
@@ -229,6 +231,7 @@ out vec4 FragColor;
 uniform float time;
 uniform float velocity;
 uniform float isDrawing;
+uniform float exitProgress;
 
 vec3 hsv2rgb(vec3 c) {
 	vec4 K = vec4(1.0, 2.0 / 3.0, 1.0 / 3.0, 3.0);
@@ -347,8 +350,9 @@ void main() {
 	noiseCoord += vec2(time * 0.3, time * 0.2);
 	float swirl = fbm(noiseCoord) * 2.0 - 1.0;
 
-	// Distort SDF with noise (less distortion when static)
-	sdf += swirl * 0.1 * energy;
+	// Distort SDF with noise (more distortion when exiting)
+	float exitDistortion = exitProgress * 0.8;
+	sdf += swirl * (0.1 * energy + exitDistortion);
 
 	// Convert SDF to intensity
 	float intensity = exp(-max(sdf, 0.0) * 4.0);
@@ -393,6 +397,9 @@ void main() {
 
 	// Alpha based on total intensity and energy
 	float alpha = clamp(totalIntensity * mix(0.8, 1.3, velocityNorm), 0.0, 1.0);
+
+	// Fade out and break apart when exiting
+	alpha *= (1.0 - exitProgress);
 
 	FragColor = vec4(finalColor, alpha * 0.95);
 }
@@ -689,6 +696,24 @@ func (g *Launcher) spawnCursorSparkles(x, y float32) {
 	}
 }
 
+func (g *Launcher) spawnExitWisps(x, y float32) {
+	// Spawn wisps that fly outward as the blob dissipates
+	for range 8 {
+		angle := rand.Float64() * 2 * math.Pi
+		speed := rand.Float32()*150 + 80
+		g.particles = append(g.particles, Particle{
+			X:       x + (rand.Float32()-0.5)*30,
+			Y:       y + (rand.Float32()-0.5)*30,
+			VX:      float32(math.Cos(angle)) * speed,
+			VY:      float32(math.Sin(angle)) * speed,
+			Life:    1.2,
+			MaxLife: 1.2,
+			Size:    rand.Float32()*12 + 8,
+			Hue:     rand.Float32(),
+		})
+	}
+}
+
 func (g *Launcher) updateParticles(dt float32) {
 	// Update particles
 	for i := 0; i < len(g.particles); i++ {
@@ -918,6 +943,20 @@ func (g *Launcher) drawBackground(currentTime float32, window *WaylandWindow) {
 		alpha = targetAlpha
 	}
 
+	// Fade out during exit animation
+	if g.isExiting {
+		exitDuration := float32(0.8)
+		elapsed := float32(time.Since(g.exitStartTime).Seconds())
+		if elapsed < exitDuration {
+			// Ease-out quint: 1 - (1-t)^5 (mirrors startup)
+			progress := elapsed / exitDuration
+			easedProgress := 1.0 - (1.0-progress)*(1.0-progress)*(1.0-progress)*(1.0-progress)*(1.0-progress)
+			alpha *= (1.0 - easedProgress)
+		} else {
+			alpha = 0
+		}
+	}
+
 	// Get cursor position for flashlight effect
 	x, y := window.GetCursorPos()
 	width, height := window.GetSize()
@@ -965,6 +1004,22 @@ func (g *Launcher) drawCursorGlow(window *WaylandWindow, cursorX, cursorY, curre
 		scale = 1.0
 	}
 
+	// Exit animation: shrink and dissipate
+	var exitProgress float32
+	if g.isExiting {
+		exitDuration := float32(0.8)
+		elapsed := float32(time.Since(g.exitStartTime).Seconds())
+		if elapsed < exitDuration {
+			// Ease-in cubic for shrinking
+			t := elapsed / exitDuration
+			exitProgress = t * t * t
+			scale *= (1.0 - exitProgress)
+		} else {
+			exitProgress = 1.0
+			scale = 0
+		}
+	}
+
 	gl.UseProgram(g.cursorGlowProgram)
 
 	// Set uniforms
@@ -988,6 +1043,9 @@ func (g *Launcher) drawCursorGlow(window *WaylandWindow, cursorX, cursorY, curre
 
 	isDrawingLoc := gl.GetUniformLocation(g.cursorGlowProgram, gl.Str("isDrawing\x00"))
 	gl.Uniform1f(isDrawingLoc, g.smoothDrawing)
+
+	exitProgressLoc := gl.GetUniformLocation(g.cursorGlowProgram, gl.Str("exitProgress\x00"))
+	gl.Uniform1f(exitProgressLoc, exitProgress)
 
 	// Draw quad
 	gl.BindVertexArray(g.cursorGlowVAO)
@@ -1052,9 +1110,25 @@ func main() {
 		// Handle keyboard
 		if key, state, hasKey := window.GetLastKey(); hasKey {
 			if state == 1 && key == 1 { // Escape key pressed
-				break
+				if !launcher.isExiting {
+					launcher.isExiting = true
+					launcher.exitStartTime = time.Now()
+					// Disable input immediately to allow click-through
+					window.DisableInput()
+					// Spawn exit wisps
+					x, y := window.GetCursorPos()
+					launcher.spawnExitWisps(float32(x), float32(y))
+				}
 			}
 			window.ClearLastKey()
+		}
+
+		// Check if exit animation is complete
+		if launcher.isExiting {
+			exitDuration := float32(0.8)
+			if time.Since(launcher.exitStartTime).Seconds() > float64(exitDuration) {
+				break
+			}
 		}
 
 		// Handle mouse button

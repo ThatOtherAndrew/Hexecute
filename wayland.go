@@ -124,6 +124,7 @@ struct wl_pointer *pointer = NULL;
 struct wl_keyboard *keyboard = NULL;
 struct zwp_keyboard_shortcuts_inhibit_manager_v1 *shortcuts_inhibit_manager = NULL;
 struct zwp_keyboard_shortcuts_inhibitor_v1 *shortcuts_inhibitor = NULL;
+struct zwlr_layer_surface_v1 *layer_surface_global = NULL;
 int32_t width_global = 0;
 int32_t height_global = 0;
 
@@ -194,29 +195,29 @@ struct wl_surface *surface_global = NULL;
 struct zwlr_layer_surface_v1 *create_layer_surface(struct wl_surface *surface) {
     surface_global = surface;
 
-    struct zwlr_layer_surface_v1 *layer_surface =
+    layer_surface_global =
         zwlr_layer_shell_v1_get_layer_surface(
             layer_shell, surface, NULL,
             ZWLR_LAYER_SHELL_V1_LAYER_OVERLAY, "hexecute");
 
     // Configure as fullscreen transparent overlay
-    zwlr_layer_surface_v1_set_anchor(layer_surface,
+    zwlr_layer_surface_v1_set_anchor(layer_surface_global,
         ZWLR_LAYER_SURFACE_V1_ANCHOR_TOP |
         ZWLR_LAYER_SURFACE_V1_ANCHOR_BOTTOM |
         ZWLR_LAYER_SURFACE_V1_ANCHOR_LEFT |
         ZWLR_LAYER_SURFACE_V1_ANCHOR_RIGHT);
 
-    zwlr_layer_surface_v1_set_exclusive_zone(layer_surface, -1);
+    zwlr_layer_surface_v1_set_exclusive_zone(layer_surface_global, -1);
 
     // Enable exclusive keyboard interactivity to capture all keyboard input
-    zwlr_layer_surface_v1_set_keyboard_interactivity(layer_surface,
+    zwlr_layer_surface_v1_set_keyboard_interactivity(layer_surface_global,
         ZWLR_LAYER_SURFACE_V1_KEYBOARD_INTERACTIVITY_EXCLUSIVE);
 
-    zwlr_layer_surface_v1_add_listener(layer_surface, &layer_surface_listener, NULL);
+    zwlr_layer_surface_v1_add_listener(layer_surface_global, &layer_surface_listener, NULL);
 
     wl_surface_commit(surface);
 
-    return layer_surface;
+    return layer_surface_global;
 }
 
 void set_input_region(int32_t width, int32_t height) {
@@ -224,6 +225,29 @@ void set_input_region(int32_t width, int32_t height) {
         // Create input region covering the full surface to capture all input
         struct wl_region *region = wl_compositor_create_region(compositor);
         wl_region_add(region, 0, 0, width, height);
+        wl_surface_set_input_region(surface_global, region);
+        wl_region_destroy(region);
+        wl_surface_commit(surface_global);
+    }
+}
+
+void disable_all_input() {
+    // Destroy keyboard shortcuts inhibitor to release compositor shortcuts
+    if (shortcuts_inhibitor) {
+        zwp_keyboard_shortcuts_inhibitor_v1_destroy(shortcuts_inhibitor);
+        shortcuts_inhibitor = NULL;
+    }
+
+    // Set keyboard interactivity to NONE to stop capturing keyboard
+    if (layer_surface_global) {
+        zwlr_layer_surface_v1_set_keyboard_interactivity(layer_surface_global,
+            ZWLR_LAYER_SURFACE_V1_KEYBOARD_INTERACTIVITY_NONE);
+    }
+
+    // Create empty input region to allow mouse click-through
+    if (surface_global) {
+        struct wl_region *region = wl_compositor_create_region(compositor);
+        // Don't add any area - empty region means no input capture
         wl_surface_set_input_region(surface_global, region);
         wl_region_destroy(region);
         wl_surface_commit(surface_global);
@@ -579,6 +603,10 @@ func (w *WaylandWindow) GetMouseButton() bool {
 
 // GetLastKey returns the last key pressed and its state (1=pressed, 0=released)
 // Returns (key, state, hasKey) - hasKey is false if no key event occurred
+func (w *WaylandWindow) DisableInput() {
+	C.disable_all_input()
+}
+
 func (w *WaylandWindow) GetLastKey() (uint32, uint32, bool) {
 	key := uint32(C.get_last_key())
 	state := uint32(C.get_last_key_state())
