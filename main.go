@@ -609,7 +609,12 @@ func main() {
 	lastTime := time.Now()
 	var wasPressed bool
 
-	log.Println("Application started. Press Ctrl+C in terminal to exit.")
+	// Give the compositor time to give us focus by doing a few initial frames
+	for i := 0; i < 5; i++ {
+		window.PollEvents()
+		gl.Clear(gl.COLOR_BUFFER_BIT)
+		window.SwapBuffers()
+	}
 
 	// Main loop
 	for !window.ShouldClose() {
@@ -621,13 +626,19 @@ func main() {
 		// Poll events
 		window.PollEvents()
 
+		// Handle keyboard
+		if key, state, hasKey := window.GetLastKey(); hasKey {
+			if state == 1 && key == 1 { // Escape key pressed
+				break
+			}
+			window.ClearLastKey()
+		}
+
 		// Handle mouse button
 		isPressed := window.GetMouseButton()
 		if isPressed && !wasPressed {
-			log.Println("Start drawing")
 			game.isDrawing = true
 		} else if !isPressed && wasPressed {
-			log.Println("Stop drawing")
 			game.isDrawing = false
 		}
 		wasPressed = isPressed

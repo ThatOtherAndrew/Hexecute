@@ -9,8 +9,9 @@ package main
 #include <EGL/egl.h>
 #include <stdlib.h>
 #include <string.h>
-#include <stdio.h>
+#include <unistd.h>
 #include "wlr-layer-shell-client.h"
+#include "keyboard-shortcuts-inhibit-client.h"
 
 // Include protocol implementation inline
 #include <stdbool.h>
@@ -82,11 +83,47 @@ WL_PRIVATE const struct wl_interface zwlr_layer_surface_v1_interface = {
 	2, zwlr_layer_surface_v1_events,
 };
 
+// Keyboard shortcuts inhibit protocol
+static const struct wl_interface *keyboard_shortcuts_inhibit_unstable_v1_types[] = {
+	&zwp_keyboard_shortcuts_inhibitor_v1_interface,
+	&wl_surface_interface,
+	&wl_seat_interface,
+};
+
+static const struct wl_message zwp_keyboard_shortcuts_inhibit_manager_v1_requests[] = {
+	{ "destroy", "", keyboard_shortcuts_inhibit_unstable_v1_types + 0 },
+	{ "inhibit_shortcuts", "noo", keyboard_shortcuts_inhibit_unstable_v1_types + 0 },
+};
+
+WL_PRIVATE const struct wl_interface zwp_keyboard_shortcuts_inhibit_manager_v1_interface = {
+	"zwp_keyboard_shortcuts_inhibit_manager_v1", 1,
+	2, zwp_keyboard_shortcuts_inhibit_manager_v1_requests,
+	0, NULL,
+};
+
+static const struct wl_message zwp_keyboard_shortcuts_inhibitor_v1_requests[] = {
+	{ "destroy", "", keyboard_shortcuts_inhibit_unstable_v1_types + 0 },
+};
+
+static const struct wl_message zwp_keyboard_shortcuts_inhibitor_v1_events[] = {
+	{ "active", "", keyboard_shortcuts_inhibit_unstable_v1_types + 0 },
+	{ "inactive", "", keyboard_shortcuts_inhibit_unstable_v1_types + 0 },
+};
+
+WL_PRIVATE const struct wl_interface zwp_keyboard_shortcuts_inhibitor_v1_interface = {
+	"zwp_keyboard_shortcuts_inhibitor_v1", 1,
+	1, zwp_keyboard_shortcuts_inhibitor_v1_requests,
+	2, zwp_keyboard_shortcuts_inhibitor_v1_events,
+};
+
 // Globals
 struct wl_compositor *compositor = NULL;
 struct zwlr_layer_shell_v1 *layer_shell = NULL;
 struct wl_seat *seat = NULL;
 struct wl_pointer *pointer = NULL;
+struct wl_keyboard *keyboard = NULL;
+struct zwp_keyboard_shortcuts_inhibit_manager_v1 *shortcuts_inhibit_manager = NULL;
+struct zwp_keyboard_shortcuts_inhibitor_v1 *shortcuts_inhibitor = NULL;
 int32_t width_global = 0;
 int32_t height_global = 0;
 
@@ -119,25 +156,18 @@ static const struct wl_seat_listener seat_listener = {
 static void registry_global(void *data, struct wl_registry *registry,
                            uint32_t name, const char *interface,
                            uint32_t version) {
-    printf("Registry global: %s (version %d)\n", interface, version);
-    fflush(stdout);
     if (strcmp(interface, "wl_compositor") == 0) {
         compositor = wl_registry_bind(registry, name, &wl_compositor_interface, 4);
-        printf("Compositor bound\n");
-        fflush(stdout);
     } else if (strcmp(interface, "zwlr_layer_shell_v1") == 0) {
         layer_shell = (struct zwlr_layer_shell_v1 *)
             wl_registry_bind(registry, name, &zwlr_layer_shell_v1_interface, 1);
-        printf("Layer shell bound\n");
-        fflush(stdout);
     } else if (strcmp(interface, "wl_seat") == 0) {
         seat = wl_registry_bind(registry, name, &wl_seat_interface, 1);
-        printf("Seat bound\n");
-        fflush(stdout);
         // Add listener immediately to catch capabilities event
         wl_seat_add_listener(seat, &seat_listener, NULL);
-        printf("Seat listener added in registry callback\n");
-        fflush(stdout);
+    } else if (strcmp(interface, "zwp_keyboard_shortcuts_inhibit_manager_v1") == 0) {
+        shortcuts_inhibit_manager = (struct zwp_keyboard_shortcuts_inhibit_manager_v1 *)
+            wl_registry_bind(registry, name, &zwp_keyboard_shortcuts_inhibit_manager_v1_interface, 1);
     }
 }
 
@@ -178,9 +208,9 @@ struct zwlr_layer_surface_v1 *create_layer_surface(struct wl_surface *surface) {
 
     zwlr_layer_surface_v1_set_exclusive_zone(layer_surface, -1);
 
-    // Don't capture keyboard - we only need mouse input
+    // Enable exclusive keyboard interactivity to capture all keyboard input
     zwlr_layer_surface_v1_set_keyboard_interactivity(layer_surface,
-        ZWLR_LAYER_SURFACE_V1_KEYBOARD_INTERACTIVITY_NONE);
+        ZWLR_LAYER_SURFACE_V1_KEYBOARD_INTERACTIVITY_EXCLUSIVE);
 
     zwlr_layer_surface_v1_add_listener(layer_surface, &layer_surface_listener, NULL);
 
@@ -191,8 +221,6 @@ struct zwlr_layer_surface_v1 *create_layer_surface(struct wl_surface *surface) {
 
 void set_input_region(int32_t width, int32_t height) {
     if (surface_global) {
-        printf("Setting input region: %dx%d\n", width, height);
-        fflush(stdout);
         // Create input region covering the full surface to capture all input
         struct wl_region *region = wl_compositor_create_region(compositor);
         wl_region_add(region, 0, 0, width, height);
@@ -211,14 +239,10 @@ void pointer_enter(void *data, struct wl_pointer *pointer, uint32_t serial,
                   struct wl_surface *surface, wl_fixed_t x, wl_fixed_t y) {
     mouse_x = wl_fixed_to_double(x);
     mouse_y = wl_fixed_to_double(y);
-    printf("Pointer enter: x=%f, y=%f\n", mouse_x, mouse_y);
-    fflush(stdout);
 }
 
 void pointer_leave(void *data, struct wl_pointer *pointer, uint32_t serial,
                   struct wl_surface *surface) {
-    printf("Pointer leave\n");
-    fflush(stdout);
 }
 
 void pointer_motion(void *data, struct wl_pointer *pointer, uint32_t time,
@@ -229,8 +253,6 @@ void pointer_motion(void *data, struct wl_pointer *pointer, uint32_t time,
 
 void pointer_button(void *data, struct wl_pointer *pointer, uint32_t serial,
                    uint32_t time, uint32_t button, uint32_t state) {
-    printf("Pointer button: button=%d, state=%d\n", button, state);
-    fflush(stdout);
     if (button == 272) { // BTN_LEFT
         button_state = state;
     }
@@ -264,32 +286,68 @@ static const struct wl_pointer_listener pointer_listener = {
     .axis_discrete = pointer_axis_discrete,
 };
 
+// Keyboard listener
+static uint32_t last_key = 0;
+static uint32_t last_key_state = 0;
+
+void keyboard_keymap(void *data, struct wl_keyboard *keyboard, uint32_t format,
+                     int32_t fd, uint32_t size) {
+    // We don't need keymaps for basic key detection, just close the fd
+    close(fd);
+}
+
+void keyboard_enter(void *data, struct wl_keyboard *keyboard, uint32_t serial,
+                    struct wl_surface *surface, struct wl_array *keys) {
+}
+
+void keyboard_leave(void *data, struct wl_keyboard *keyboard, uint32_t serial,
+                    struct wl_surface *surface) {
+}
+
+void keyboard_key(void *data, struct wl_keyboard *keyboard, uint32_t serial,
+                  uint32_t time, uint32_t key, uint32_t state) {
+    last_key = key;
+    last_key_state = state;
+}
+
+void keyboard_modifiers(void *data, struct wl_keyboard *keyboard, uint32_t serial,
+                        uint32_t mods_depressed, uint32_t mods_latched,
+                        uint32_t mods_locked, uint32_t group) {
+}
+
+void keyboard_repeat_info(void *data, struct wl_keyboard *keyboard,
+                          int32_t rate, int32_t delay) {
+}
+
+static const struct wl_keyboard_listener keyboard_listener = {
+    .keymap = keyboard_keymap,
+    .enter = keyboard_enter,
+    .leave = keyboard_leave,
+    .key = keyboard_key,
+    .modifiers = keyboard_modifiers,
+    .repeat_info = keyboard_repeat_info,
+};
+
 // Seat listener
 void seat_capabilities(void *data, struct wl_seat *seat, uint32_t capabilities) {
-    printf("Seat capabilities: %d (pointer=%d)\n", capabilities, (capabilities & WL_SEAT_CAPABILITY_POINTER) != 0);
-    fflush(stdout);
     if (capabilities & WL_SEAT_CAPABILITY_POINTER) {
         pointer = wl_seat_get_pointer(seat);
         wl_pointer_add_listener(pointer, &pointer_listener, NULL);
-        printf("Pointer listener added\n");
-        fflush(stdout);
+    }
+
+    if (capabilities & WL_SEAT_CAPABILITY_KEYBOARD) {
+        keyboard = wl_seat_get_keyboard(seat);
+        wl_keyboard_add_listener(keyboard, &keyboard_listener, NULL);
+
+        // Inhibit keyboard shortcuts if manager is available
+        if (shortcuts_inhibit_manager && surface_global && !shortcuts_inhibitor) {
+            shortcuts_inhibitor = zwp_keyboard_shortcuts_inhibit_manager_v1_inhibit_shortcuts(
+                shortcuts_inhibit_manager, surface_global, seat);
+        }
     }
 }
 
 void seat_name(void *data, struct wl_seat *seat, const char *name) {
-}
-
-void setup_seat_listener() {
-    printf("setup_seat_listener called, seat=%p\n", seat);
-    fflush(stdout);
-    if (seat) {
-        wl_seat_add_listener(seat, &seat_listener, NULL);
-        printf("Seat listener added\n");
-        fflush(stdout);
-    } else {
-        printf("ERROR: No seat available!\n");
-        fflush(stdout);
-    }
 }
 
 int get_button_state() {
@@ -304,6 +362,19 @@ void get_mouse_pos(double *x, double *y) {
 void get_dimensions(int32_t *w, int32_t *h) {
     *w = width_global;
     *h = height_global;
+}
+
+uint32_t get_last_key() {
+    return last_key;
+}
+
+uint32_t get_last_key_state() {
+    return last_key_state;
+}
+
+void clear_last_key() {
+    last_key = 0;
+    last_key_state = 0;
 }
 */
 import "C"
@@ -392,6 +463,11 @@ func NewWaylandWindow() (*WaylandWindow, error) {
 
 	// Commit surface after EGL setup to ensure it's ready to receive events
 	C.wl_surface_commit(w.surface)
+	C.wl_display_flush(w.display)
+
+	// Do multiple roundtrips to ensure the surface is fully mapped and gets focus
+	C.wl_display_roundtrip(w.display)
+	C.wl_display_roundtrip(w.display)
 	C.wl_display_flush(w.display)
 
 	return w, nil
@@ -497,6 +573,19 @@ func (w *WaylandWindow) GetCursorPos() (float64, float64) {
 func (w *WaylandWindow) GetMouseButton() bool {
 	state := C.get_button_state()
 	return state == 1 // WL_POINTER_BUTTON_STATE_PRESSED
+}
+
+// GetLastKey returns the last key pressed and its state (1=pressed, 0=released)
+// Returns (key, state, hasKey) - hasKey is false if no key event occurred
+func (w *WaylandWindow) GetLastKey() (uint32, uint32, bool) {
+	key := uint32(C.get_last_key())
+	state := uint32(C.get_last_key_state())
+	return key, state, key != 0
+}
+
+// ClearLastKey clears the last key state
+func (w *WaylandWindow) ClearLastKey() {
+	C.clear_last_key()
 }
 
 func (w *WaylandWindow) Destroy() {
