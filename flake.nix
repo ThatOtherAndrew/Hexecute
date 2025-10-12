@@ -35,6 +35,9 @@
           wayland
           libxkbcommon
         ];
+
+        LD_LIBRARY_PATH = "${pkgs.lib.makeLibraryPath [ pkgs.libGL pkgs.libGLU
+       ]}";
       };
     };
 }

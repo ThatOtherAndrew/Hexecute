@@ -4,8 +4,7 @@ import rl "github.com/gen2brain/raylib-go/raylib"
 
 func main() {
 	rl.SetConfigFlags(rl.FlagWindowTransparent)
-	rl.InitWindow(0, 0, "hexecute")
-	rl.SetWindowState(rl.FlagWindowUndecorated)
+	rl.InitWindow(500, 500, "hexecute")
 	defer rl.CloseWindow()
 
 	points := []rl.Vector2{}
@@ -18,7 +17,9 @@ func main() {
 
 	for !rl.WindowShouldClose() {
 		rl.BeginDrawing()
+		rl.EnableColorBlend()
 		rl.ClearBackground(rl.Blank)
+		rl.DrawRectangle(0, 0, 500, 500, rl.Fade(rl.Red, 0.5))
 
 		isMouseDown := rl.IsMouseButtonDown(rl.MouseLeftButton)
 		if isMouseDown {
