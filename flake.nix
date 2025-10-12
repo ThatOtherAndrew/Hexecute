@@ -17,14 +17,21 @@
 
         packages = with pkgs; [
           go
+          pkg-config
 
-          # Build libs
-          xorg.libX11
-          xorg.libXrandr
-          xorg.libXxf86vm
-          xorg.libXi
-          xorg.libXcursor
-          xorg.libXinerama
+          # Wayland libraries
+          wayland
+          wayland-protocols
+          wayland-scanner
+          libxkbcommon
+
+          # EGL and OpenGL
+          libGL
+          libGLU
+          mesa
+
+          # Build tools
+          gcc
         ];
       };
     };

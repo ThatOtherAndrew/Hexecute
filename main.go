@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"github.com/go-gl/gl/v4.1-core/gl"
-	"github.com/go-gl/glfw/v3.3/glfw"
 )
 
 type Point struct {
@@ -412,7 +411,7 @@ func (g *Game) updateParticles(dt float32) {
 	}
 }
 
-func (g *Game) draw(window *glfw.Window) {
+func (g *Game) draw(window *WaylandWindow) {
 	gl.Clear(gl.COLOR_BUFFER_BIT)
 
 	currentTime := float32(time.Since(g.startTime).Seconds())
@@ -432,7 +431,7 @@ func (g *Game) draw(window *glfw.Window) {
 	g.drawFlash(currentTime)
 }
 
-func (g *Game) drawLine(window *glfw.Window, baseThickness, baseAlpha, currentTime float32) {
+func (g *Game) drawLine(window *WaylandWindow, baseThickness, baseAlpha, currentTime float32) {
 	if len(g.points) < 2 {
 		return
 	}
@@ -529,7 +528,7 @@ func (g *Game) drawLine(window *glfw.Window, baseThickness, baseAlpha, currentTi
 	gl.BindVertexArray(0)
 }
 
-func (g *Game) drawParticles(window *glfw.Window) {
+func (g *Game) drawParticles(window *WaylandWindow) {
 	if len(g.particles) == 0 {
 		return
 	}
@@ -585,32 +584,12 @@ func (g *Game) drawFlash(currentTime float32) {
 }
 
 func main() {
-	// Initialize GLFW
-	if err := glfw.Init(); err != nil {
-		log.Fatal("Failed to initialize GLFW:", err)
-	}
-	defer glfw.Terminate()
-
-	// Get monitor size
-	monitor := glfw.GetPrimaryMonitor()
-	mode := monitor.GetVideoMode()
-
-	// Configure window
-	glfw.WindowHint(glfw.ContextVersionMajor, 4)
-	glfw.WindowHint(glfw.ContextVersionMinor, 1)
-	glfw.WindowHint(glfw.OpenGLProfile, glfw.OpenGLCoreProfile)
-	glfw.WindowHint(glfw.OpenGLForwardCompatible, glfw.True)
-	glfw.WindowHint(glfw.Decorated, glfw.False)
-	glfw.WindowHint(glfw.Floating, glfw.True)
-	glfw.WindowHint(glfw.TransparentFramebuffer, glfw.True)
-
-	// Create window
-	window, err := glfw.CreateWindow(mode.Width, mode.Height, "hexecute", nil, nil)
+	// Create Wayland window with layer shell
+	window, err := NewWaylandWindow()
 	if err != nil {
-		log.Fatal("Failed to create window:", err)
+		log.Fatal("Failed to create Wayland window:", err)
 	}
-	window.MakeContextCurrent()
-	glfw.SwapInterval(1)
+	defer window.Destroy()
 
 	// Initialize game and OpenGL
 	game := &Game{
@@ -627,25 +606,10 @@ func main() {
 	// Set clear color to transparent
 	gl.ClearColor(0, 0, 0, 0)
 
-	// Mouse button callback
-	window.SetMouseButtonCallback(func(w *glfw.Window, button glfw.MouseButton, action glfw.Action, mods glfw.ModifierKey) {
-		if button == glfw.MouseButtonLeft {
-			switch action {
-			case glfw.Press:
-				if !game.isDrawing {
-					log.Println("Start drawing")
-					game.isDrawing = true
-				}
-			case glfw.Release:
-				if game.isDrawing {
-					log.Println("Stop drawing")
-					game.isDrawing = false
-				}
-			}
-		}
-	})
-
 	lastTime := time.Now()
+	var wasPressed bool
+
+	log.Println("Application started. Press Ctrl+C in terminal to exit.")
 
 	// Main loop
 	for !window.ShouldClose() {
@@ -653,6 +617,20 @@ func main() {
 		now := time.Now()
 		dt := float32(now.Sub(lastTime).Seconds())
 		lastTime = now
+
+		// Poll events
+		window.PollEvents()
+
+		// Handle mouse button
+		isPressed := window.GetMouseButton()
+		if isPressed && !wasPressed {
+			log.Println("Start drawing")
+			game.isDrawing = true
+		} else if !isPressed && wasPressed {
+			log.Println("Stop drawing")
+			game.isDrawing = false
+		}
+		wasPressed = isPressed
 
 		// Update
 		if game.isDrawing {
@@ -665,8 +643,7 @@ func main() {
 		// Draw
 		game.draw(window)
 
-		// Swap and poll
+		// Swap buffers
 		window.SwapBuffers()
-		glfw.PollEvents()
 	}
 }
