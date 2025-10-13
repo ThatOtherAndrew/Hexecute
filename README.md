@@ -6,7 +6,55 @@ Launch apps by casting spells! 🪄
 
 ## Installation
 
-TODO
+### Nix / NixOS
+
+If you're a lucky [Nix](https://nixos.org/) user, you can:
+
+**Try it out without installing:**
+```bash
+nix run github:ThatOtherAndrew/Hexecute
+```
+
+**Install to your profile:**
+```bash
+nix profile install github:ThatOtherAndrew/Hexecute
+```
+
+**Add to your NixOS configuration:**
+```nix
+# flake.nix
+{
+  inputs.hexecute.url = "github:ThatOtherAndrew/Hexecute";
+}
+```
+```nix
+# configuration.nix
+{
+  environment.systemPackages = with pkgs; [
+    inputs.hexecute.packages.${pkgs.system}.default
+  ];
+}
+```
+
+### Executable download
+
+Download the latest version from the [release page](https://github.com/ThatOtherAndrew/Hexecute/releases/latest), and place it somewhere in your `$PATH`.
+
+### Build from Source
+
+Clone the repository:
+```bash
+git clone https://github.com/ThatOtherAndrew/Hexecute
+cd Hexecute
+```
+
+If you have [Nix](https://nixos.org/) installed, simply run `nix build`.
+
+Otherwise, make sure you have Go (and all dependent Wayland (and X11!?) libs) installed, then run:
+```bash
+go build
+./hexecute
+```
 
 ## Usage
 
