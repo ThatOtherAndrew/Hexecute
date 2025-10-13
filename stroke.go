@@ -23,6 +23,9 @@ func resample(points []Point, n int) []Point {
 			D += d
 		}
 	}
+	for len(newPoints) < n {
+		newPoints = append(newPoints, points[len(points)-1])
+	}
 	return newPoints
 }
 

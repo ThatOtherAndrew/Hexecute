@@ -1,10 +1,17 @@
 package main
 
 import (
+	"encoding/json"
+	"flag"
 	"log"
 	"math"
 	"math/rand"
+	"os"
+	"os/exec"
+	"path/filepath"
 	"runtime"
+	"strings"
+	"syscall"
 	"time"
 
 	"github.com/go-gl/gl/v4.1-core/gl"
@@ -12,7 +19,7 @@ import (
 
 type Point struct {
 	X, Y     float32
-	BornTime time.Time
+	BornTime time.Time `json:"-"`
 }
 
 type Particle struct {
@@ -49,6 +56,11 @@ type App struct {
 	smoothDrawing     float32
 	isExiting         bool
 	exitStartTime     time.Time
+	learnMode         bool
+	learnCommand      string
+	learnGestures     [][]Point
+	learnCount        int
+	savedGestures     []GestureConfig
 }
 
 const lineVertexShader = `
@@ -914,7 +926,199 @@ func (a *App) drawCursorGlow(window *WaylandWindow, cursorX, cursorY, currentTim
 	gl.BindVertexArray(0)
 }
 
+type GestureConfig struct {
+	Command   string    `json:"command"`
+	Templates [][]Point `json:"templates"`
+}
+
+func getConfigPath() (string, error) {
+	homeDir, err := os.UserHomeDir()
+	if err != nil {
+		return "", err
+	}
+	configDir := filepath.Join(homeDir, ".config", "hexecute")
+	if err := os.MkdirAll(configDir, 0755); err != nil {
+		return "", err
+	}
+	return filepath.Join(configDir, "gestures.json"), nil
+}
+
+func loadGestures() ([]GestureConfig, error) {
+	configFile, err := getConfigPath()
+	if err != nil {
+		return nil, err
+	}
+
+	data, err := os.ReadFile(configFile)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return []GestureConfig{}, nil
+		}
+		return nil, err
+	}
+
+	var gestures []GestureConfig
+	if err := json.Unmarshal(data, &gestures); err != nil {
+		return nil, err
+	}
+
+	return gestures, nil
+}
+
+func saveGesture(command string, templates [][]Point) error {
+	configFile, err := getConfigPath()
+	if err != nil {
+		return err
+	}
+
+	var gestures []GestureConfig
+	if data, err := os.ReadFile(configFile); err == nil {
+		json.Unmarshal(data, &gestures)
+	}
+
+	newGesture := GestureConfig{
+		Command:   command,
+		Templates: templates,
+	}
+
+	found := false
+	for i, g := range gestures {
+		if g.Command == command {
+			gestures[i] = newGesture
+			found = true
+			break
+		}
+	}
+	if !found {
+		gestures = append(gestures, newGesture)
+	}
+
+	data, err := json.Marshal(gestures)
+	if err != nil {
+		return err
+	}
+
+	return os.WriteFile(configFile, data, 0644)
+}
+
+func executeCommand(command string) error {
+	parts := strings.Fields(command)
+	if len(parts) == 0 {
+		return nil
+	}
+
+	cmd := exec.Command(parts[0], parts[1:]...)
+	cmd.SysProcAttr = &syscall.SysProcAttr{
+		Setsid: true,
+	}
+	cmd.Stdin = nil
+	cmd.Stdout = nil
+	cmd.Stderr = nil
+
+	return cmd.Start()
+}
+
+func (a *App) recognizeAndExecute() {
+	if len(a.points) < 5 {
+		log.Println("Gesture too short, ignoring")
+		return
+	}
+
+	processed := ProcessStroke(a.points)
+
+	bestMatch := -1
+	bestScore := 0.0
+
+	for i, gesture := range a.savedGestures {
+		match, score := UnistrokeRecognise(processed, gesture.Templates)
+		log.Printf("Gesture %d (%s): template %d, score %.3f", i, gesture.Command, match, score)
+
+		if score > bestScore {
+			bestScore = score
+			bestMatch = i
+		}
+	}
+
+	if bestMatch >= 0 && bestScore > 0.6 {
+		command := a.savedGestures[bestMatch].Command
+		log.Printf("Matched gesture: %s (score: %.3f)", command, bestScore)
+
+		if err := executeCommand(command); err != nil {
+			log.Printf("Failed to execute command: %v", err)
+		} else {
+			log.Printf("Executed: %s", command)
+		}
+
+		a.isExiting = true
+		a.exitStartTime = time.Now()
+	} else {
+		log.Printf("No confident match (best score: %.3f)", bestScore)
+	}
+}
+
 func main() {
+	learnCommand := flag.String("learn", "", "Learn a new gesture for the specified command")
+	listGestures := flag.Bool("list", false, "List all registered gestures")
+	removeGesture := flag.String("remove", "", "Remove a gesture by command name")
+	flag.Parse()
+
+	if flag.NArg() > 0 {
+		log.Fatalf("Unknown arguments: %v", flag.Args())
+	}
+
+	if *listGestures {
+		gestures, err := loadGestures()
+		if err != nil {
+			log.Fatal("Failed to load gestures:", err)
+		}
+		if len(gestures) == 0 {
+			println("No gestures registered")
+		} else {
+			println("Registered gestures:")
+			for _, g := range gestures {
+				println("  ", g.Command)
+			}
+		}
+		return
+	}
+
+	if *removeGesture != "" {
+		gestures, err := loadGestures()
+		if err != nil {
+			log.Fatal("Failed to load gestures:", err)
+		}
+
+		found := false
+		for i, g := range gestures {
+			if g.Command == *removeGesture {
+				gestures = append(gestures[:i], gestures[i+1:]...)
+				found = true
+				break
+			}
+		}
+
+		if !found {
+			log.Fatalf("Gesture not found: %s", *removeGesture)
+		}
+
+		configFile, err := getConfigPath()
+		if err != nil {
+			log.Fatal("Failed to get config path:", err)
+		}
+
+		data, err := json.Marshal(gestures)
+		if err != nil {
+			log.Fatal("Failed to marshal gestures:", err)
+		}
+
+		if err := os.WriteFile(configFile, data, 0644); err != nil {
+			log.Fatal("Failed to save gestures:", err)
+		}
+
+		println("Removed gesture:", *removeGesture)
+		return
+	}
+
 	window, err := NewWaylandWindow()
 	if err != nil {
 		log.Fatal("Failed to create Wayland window:", err)
@@ -922,6 +1126,19 @@ func main() {
 	defer window.Destroy()
 
 	app := &App{startTime: time.Now()}
+
+	if *learnCommand != "" {
+		app.learnMode = true
+		app.learnCommand = *learnCommand
+		log.Printf("Learn mode: Draw the gesture 3 times for command '%s'", *learnCommand)
+	} else {
+		gestures, err := loadGestures()
+		if err != nil {
+			log.Fatal("Failed to load gestures:", err)
+		}
+		app.savedGestures = gestures
+		log.Printf("Loaded %d gesture(s)", len(gestures))
+	}
 
 	if err := app.initGL(); err != nil {
 		log.Fatal("Failed to initialize OpenGL:", err)
@@ -973,6 +1190,31 @@ func main() {
 			app.isDrawing = true
 		} else if !isPressed && wasPressed {
 			app.isDrawing = false
+
+			if app.learnMode && len(app.points) > 0 {
+				processed := ProcessStroke(app.points)
+				app.learnGestures = append(app.learnGestures, processed)
+				app.learnCount++
+				log.Printf("Captured gesture %d/3", app.learnCount)
+
+				app.points = nil
+
+				if app.learnCount >= 3 {
+					if err := saveGesture(app.learnCommand, app.learnGestures); err != nil {
+						log.Fatal("Failed to save gesture:", err)
+					}
+					log.Printf("Gesture saved for command: %s", app.learnCommand)
+
+					app.isExiting = true
+					app.exitStartTime = time.Now()
+					window.DisableInput()
+					x, y := window.GetCursorPos()
+					app.spawnExitWisps(float32(x), float32(y))
+				}
+			} else if !app.learnMode && len(app.points) > 0 {
+				app.recognizeAndExecute()
+				app.points = nil
+			}
 		}
 		wasPressed = isPressed
 
