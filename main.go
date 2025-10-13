@@ -1018,7 +1018,7 @@ func executeCommand(command string) error {
 	return cmd.Start()
 }
 
-func (a *App) recognizeAndExecute() {
+func (a *App) recognizeAndExecute(window *WaylandWindow, x, y float32) {
 	if len(a.points) < 5 {
 		log.Println("Gesture too short, ignoring")
 		return
@@ -1051,6 +1051,8 @@ func (a *App) recognizeAndExecute() {
 
 		a.isExiting = true
 		a.exitStartTime = time.Now()
+		window.DisableInput()
+		a.spawnExitWisps(x, y)
 	} else {
 		log.Printf("No confident match (best score: %.3f)", bestScore)
 	}
@@ -1212,7 +1214,8 @@ func main() {
 					app.spawnExitWisps(float32(x), float32(y))
 				}
 			} else if !app.learnMode && len(app.points) > 0 {
-				app.recognizeAndExecute()
+				x, y := window.GetCursorPos()
+				app.recognizeAndExecute(window, float32(x), float32(y))
 				app.points = nil
 			}
 		}
