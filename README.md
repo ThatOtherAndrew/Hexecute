@@ -40,6 +40,12 @@ nix profile install github:ThatOtherAndrew/Hexecute
 
 Download the latest version from the [release page](https://github.com/ThatOtherAndrew/Hexecute/releases/latest), and place it somewhere in your `$PATH`.
 
+**Don't forget to rename the downloaded binary to `hexecute` and make it executable:**
+```bash
+mv hexecute-1.2.3-blah hexecute
+chmod +x hexecute
+```
+
 ### Build from Source
 
 Clone the repository:
