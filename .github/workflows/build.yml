@@ -19,5 +19,5 @@ jobs:
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: hexecute.zip
-          path: ./result
+          name: hexecute
+          path: ./result/bin/
