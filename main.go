@@ -10,7 +10,6 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
-	"strings"
 	"syscall"
 	"time"
 
@@ -1002,12 +1001,11 @@ func saveGesture(command string, templates [][]Point) error {
 }
 
 func executeCommand(command string) error {
-	parts := strings.Fields(command)
-	if len(parts) == 0 {
+	if command == "" {
 		return nil
 	}
 
-	cmd := exec.Command(parts[0], parts[1:]...)
+	cmd := exec.Command("sh", "-c", command)
 	cmd.SysProcAttr = &syscall.SysProcAttr{
 		Setsid: true,
 	}
