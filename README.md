@@ -1,6 +1,6 @@
 # Hexecute
 
-Launch apps by casting spells! 🪄
+A gesture-based launcher for Wayland. Launch apps by casting spells! 🪄
 
 ![Demo GIF](assets/demo.gif)
 
