@@ -45,6 +45,22 @@ Download the latest version from the [release page](https://github.com/ThatOther
 mv hexecute-1.2.3-blah hexecute
 chmod +x hexecute
 ```
+### Fix for Non-Nix Systems
+#### Arch Linux
+```
+sudo pacman -S patchelf
+patchelf --set-interpreter /lib64/ld-linux-x86-64.so.2 hexecute
+```
+#### Fedora
+```
+sudo dnf install patchelf
+patchelf --set-interpreter /lib64/ld-linux-x86-64.so.2 hexecute
+```
+#### Ubuntu / Debian
+```
+sudo apt install patchelf
+patchelf --set-interpreter /lib/x86_64-linux-gnu/ld-linux-x86-64.so.2 hexecute
+```
 
 ### Build from Source
 
