@@ -14,286 +14,11 @@ import (
 	"time"
 
 	"github.com/ThatOtherAndrew/Hexecute/internal/models"
+	"github.com/ThatOtherAndrew/Hexecute/internal/shaders"
 	"github.com/ThatOtherAndrew/Hexecute/internal/stroke"
 	"github.com/ThatOtherAndrew/Hexecute/pkg/wayland"
 	"github.com/go-gl/gl/v4.1-core/gl"
 )
-
-const lineVertexShader = `
-#version 410 core
-layout (location = 0) in vec2 position;
-layout (location = 1) in vec2 offset;
-layout (location = 2) in float alpha;
-
-uniform vec2 resolution;
-uniform float thickness;
-
-out float vAlpha;
-out vec2 vPosition;
-
-void main() {
-	vec2 pos = position + offset * thickness;
-	vec2 normalized = (pos / resolution) * 2.0 - 1.0;
-	normalized.y = -normalized.y;
-	gl_Position = vec4(normalized, 0.0, 1.0);
-	vAlpha = alpha;
-	vPosition = pos;
-}
-` + "\x00"
-
-const lineFragmentShader = `
-#version 410 core
-in float vAlpha;
-in vec2 vPosition;
-out vec4 FragColor;
-
-uniform float time;
-
-vec3 hsv2rgb(vec3 c) {
-	vec4 K = vec4(1.0, 2.0 / 3.0, 1.0 / 3.0, 3.0);
-	vec3 p = abs(fract(c.xxx + K.xyz) * 6.0 - K.www);
-	return c.z * mix(K.xxx, clamp(p - K.xxx, 0.0, 1.0), c.y);
-}
-
-void main() {
-	float hue = mod(vPosition.x * 0.001 + vPosition.y * 0.001 + time * 0.5, 1.0);
-	vec3 color = hsv2rgb(vec3(hue, 0.8, 1.0));
-
-	float sparkle = sin(vPosition.x * 0.1 + time * 3.0) * sin(vPosition.y * 0.1 + time * 2.0);
-	sparkle = smoothstep(0.7, 1.0, sparkle) * 0.5;
-
-	FragColor = vec4(color * (1.0 + sparkle * 2.0), vAlpha);
-}
-` + "\x00"
-
-const particleVertexShader = `
-#version 410 core
-layout (location = 0) in vec2 position;
-layout (location = 1) in float life;
-layout (location = 2) in float maxLife;
-layout (location = 3) in float size;
-layout (location = 4) in float hue;
-
-uniform vec2 resolution;
-
-out float vLife;
-out float vHue;
-
-void main() {
-	vec2 normalized = (position / resolution) * 2.0 - 1.0;
-	normalized.y = -normalized.y;
-	gl_Position = vec4(normalized, 0.0, 1.0);
-	gl_PointSize = size * (life / maxLife);
-	vLife = life / maxLife;
-	vHue = hue;
-}
-` + "\x00"
-
-const particleFragmentShader = `
-#version 410 core
-in float vLife;
-in float vHue;
-out vec4 FragColor;
-
-vec3 hsv2rgb(vec3 c) {
-	vec4 K = vec4(1.0, 2.0 / 3.0, 1.0 / 3.0, 3.0);
-	vec3 p = abs(fract(c.xxx + K.xyz) * 6.0 - K.www);
-	return c.z * mix(K.xxx, clamp(p - K.xxx, 0.0, 1.0), c.y);
-}
-
-void main() {
-	vec2 coord = gl_PointCoord - vec2(0.5);
-	float dist = length(coord);
-	if (dist > 0.5) discard;
-
-	float alpha = smoothstep(0.5, 0.2, dist) * vLife;
-	vec3 color = hsv2rgb(vec3(vHue, 0.9, 1.0)) * (1.0 + (1.0 - dist * 2.0) * 2.0);
-
-	FragColor = vec4(color, alpha * 0.8);
-}
-` + "\x00"
-
-const backgroundVertexShader = `
-#version 410 core
-layout (location = 0) in vec2 position;
-
-void main() {
-	gl_Position = vec4(position, 0.0, 1.0);
-}
-` + "\x00"
-
-const backgroundFragmentShader = `
-#version 410 core
-out vec4 FragColor;
-
-uniform float alpha;
-uniform vec2 cursorPos;
-uniform vec2 resolution;
-
-void main() {
-	vec2 fragCoord = gl_FragCoord.xy;
-	float dist = length(fragCoord - cursorPos);
-	float glowFalloff = smoothstep(0.0, 300.0, dist);
-	float cursorTransparency = mix(0.3, 1.0, glowFalloff);
-
-	FragColor = vec4(0., 0., 0., alpha * cursorTransparency);
-}
-` + "\x00"
-
-const cursorGlowVertexShader = `
-#version 410 core
-layout (location = 0) in vec2 position;
-
-uniform vec2 cursorPos;
-uniform vec2 resolution;
-uniform float glowSize;
-uniform float rotation;
-
-out vec2 vTexCoord;
-
-void main() {
-	float c = cos(rotation);
-	float s = sin(rotation);
-	vec2 rotatedPos = vec2(position.x * c - position.y * s, position.x * s + position.y * c);
-	vec2 worldPos = cursorPos + rotatedPos * glowSize;
-	vec2 normalized = (worldPos / resolution) * 2.0 - 1.0;
-	normalized.y = -normalized.y;
-	gl_Position = vec4(normalized, 0.0, 1.0);
-	vTexCoord = rotatedPos * 0.5 + 0.5;
-}
-` + "\x00"
-
-const cursorGlowFragmentShader = `
-#version 410 core
-in vec2 vTexCoord;
-out vec4 FragColor;
-
-uniform float time;
-uniform float velocity;
-uniform float isDrawing;
-uniform float exitProgress;
-
-vec3 hsv2rgb(vec3 c) {
-	vec4 K = vec4(1.0, 2.0 / 3.0, 1.0 / 3.0, 3.0);
-	vec3 p = abs(fract(c.xxx + K.xyz) * 6.0 - K.www);
-	return c.z * mix(K.xxx, clamp(p - K.xxx, 0.0, 1.0), c.y);
-}
-
-float smin(float a, float b, float k) {
-	float h = clamp(0.5 + 0.5 * (b - a) / k, 0.0, 1.0);
-	return mix(b, a, h) - k * h * (1.0 - h);
-}
-
-float hash(vec2 p) {
-	p = fract(p * vec2(123.34, 456.21));
-	p += dot(p, p + 45.32);
-	return fract(p.x * p.y);
-}
-
-float noise(vec2 p) {
-	vec2 i = floor(p);
-	vec2 f = fract(p);
-	f = f * f * (3.0 - 2.0 * f);
-
-	float a = hash(i);
-	float b = hash(i + vec2(1.0, 0.0));
-	float c = hash(i + vec2(0.0, 1.0));
-	float d = hash(i + vec2(1.0, 1.0));
-
-	return mix(mix(a, b, f.x), mix(c, d, f.x), f.y);
-}
-
-float fbm(vec2 p) {
-	float value = 0.0;
-	float amplitude = 0.5;
-	float frequency = 1.0;
-
-	for(int i = 0; i < 4; i++) {
-		value += amplitude * noise(p * frequency);
-		frequency *= 2.0;
-		amplitude *= 0.5;
-	}
-	return value;
-}
-
-void main() {
-	vec2 coord = vTexCoord * 2.0 - 1.0;
-	float velocityNorm = clamp(velocity * 0.01, 0.0, 1.0);
-	float energy = mix(0.3, 1.0, velocityNorm) + isDrawing * 0.7;
-
-	float sdf = 1000.0;
-	float centralSize = mix(0.15, 0.35, velocityNorm) + isDrawing * 0.05;
-	float pulseSpeed = (3.0 + velocityNorm * 2.0) * (1.0 + isDrawing * 0.75);
-	float pulseAmount = (0.1 * energy + isDrawing * 0.075);
-	float pulse = sin(time * pulseSpeed) * pulseAmount + 0.9;
-	float centralDist = length(coord) - centralSize * pulse;
-	sdf = centralDist;
-
-	float numBlobsFloat = mix(5.0, 9.0, velocityNorm) + isDrawing * 1.0;
-	int numBlobs = int(numBlobsFloat);
-	float blobFade = fract(numBlobsFloat);
-
-	for(int i = 0; i < 10; i++) {
-		if(i > numBlobs) break;
-		if(i == numBlobs && blobFade < 0.01) break;
-		float baseRotation = time * 0.8;
-		float velocityRotation = time * velocityNorm * 0.4;
-		float angle = float(i) * 6.28 / float(numBlobs) + baseRotation + velocityRotation;
-
-		float baseRadius = mix(0.2, 0.5, velocityNorm) + isDrawing * 0.075;
-		float radiusVariation = sin(time * (1.5 + isDrawing * 0.5) + float(i) * 0.8) * mix(0.05, 0.15, velocityNorm);
-		float chaoticRadius = sin(time * 4.0 + float(i) * 2.1) * cos(time * 3.5 + float(i) * 1.7) * 0.003 * isDrawing;
-		float radius = baseRadius + radiusVariation + chaoticRadius;
-		vec2 orbPos = vec2(cos(angle), sin(angle)) * radius;
-
-		float baseBlobSize = mix(0.08, 0.18, velocityNorm) + isDrawing * 0.04;
-		float sizeVariation = sin(time * (2.5 + isDrawing * 1.0) + float(i) * 0.6) * mix(0.02, 0.05, velocityNorm);
-		float drawingGrowth = sin(time * 5.0 + float(i) * 1.3) * 0.03 * isDrawing;
-		float blobSize = baseBlobSize + sizeVariation + drawingGrowth;
-		float blobDist = length(coord - orbPos) - blobSize;
-
-		if(i == numBlobs) {
-			blobDist += (1.0 - blobFade) * 0.5;
-		}
-		float blendAmount = mix(0.15, 0.3, velocityNorm) + isDrawing * 0.075;
-		sdf = smin(sdf, blobDist, blendAmount);
-	}
-
-	float noiseZoom = 3.0 + isDrawing * 0.5;
-	vec2 noiseCoord = coord * noiseZoom;
-	noiseCoord += vec2(time * 0.3, time * 0.2);
-	float swirl = fbm(noiseCoord) * 2.0 - 1.0;
-
-	sdf += swirl * (0.1 * energy + exitProgress * 0.8);
-	float intensity = exp(-max(sdf, 0.0) * 4.0);
-	float outerGlow = exp(-max(sdf, 0.0) * 1.5) * 0.4 * energy;
-	float innerGlow = exp(-max(sdf, 0.0) * 8.0) * 0.8;
-
-	float totalIntensity = intensity + outerGlow + innerGlow;
-
-	totalIntensity *= smoothstep(1.0, 0.7, max(abs(coord.x), abs(coord.y)));
-
-	float hueSpeed = mix(0.2, 0.6, velocityNorm);
-	float hue = mod(time * hueSpeed + atan(coord.y, coord.x) / 6.28 + swirl * 0.3, 1.0);
-	vec3 mainColor = hsv2rgb(vec3(hue, mix(0.7, 0.75, velocityNorm), 1.0));
-	vec3 accentColor = hsv2rgb(vec3(mod(hue + 0.5, 1.0), 0.75, 1.2));
-	vec3 finalColor = mainColor * intensity;
-	finalColor += accentColor * innerGlow;
-	finalColor += mainColor * 0.5 * outerGlow;
-
-	float sparkle = smoothstep(0.85, 1.0, noise(coord * 20.0 + time * 5.0 * energy)) * totalIntensity * velocityNorm;
-	finalColor += sparkle;
-
-	float edge = smoothstep(0.05, -0.05, sdf) - smoothstep(0.15, 0.05, sdf);
-	finalColor += accentColor * edge * energy;
-
-	finalColor *= sin(time * (2.5 + isDrawing * 0.75)) * (0.1 + velocityNorm * 0.1 + isDrawing * 0.075) + 0.9;
-
-	float alpha = clamp(totalIntensity * mix(0.8, 1.3, velocityNorm), 0.0, 1.0) * (1.0 - exitProgress);
-
-	FragColor = vec4(finalColor, alpha * 0.95);
-}
-` + "\x00"
 
 func init() {
 	runtime.LockOSThread()
@@ -336,11 +61,11 @@ func (a *App) initGL() error {
 		return err
 	}
 
-	vertShader, err := compileShader(lineVertexShader, gl.VERTEX_SHADER)
+	vertShader, err := shaders.CompileShader(shaders.LineVertexShader, gl.VERTEX_SHADER)
 	if err != nil {
 		return err
 	}
-	fragShader, err := compileShader(lineFragmentShader, gl.FRAGMENT_SHADER)
+	fragShader, err := shaders.CompileShader(shaders.LineFragmentShader, gl.FRAGMENT_SHADER)
 	if err != nil {
 		return err
 	}
@@ -363,11 +88,14 @@ func (a *App) initGL() error {
 	gl.DeleteShader(vertShader)
 	gl.DeleteShader(fragShader)
 
-	particleVertShader, err := compileShader(particleVertexShader, gl.VERTEX_SHADER)
+	particleVertShader, err := shaders.CompileShader(shaders.ParticleVertexShader, gl.VERTEX_SHADER)
 	if err != nil {
 		return err
 	}
-	particleFragShader, err := compileShader(particleFragmentShader, gl.FRAGMENT_SHADER)
+	particleFragShader, err := shaders.CompileShader(
+		shaders.ParticleFragmentShader,
+		gl.FRAGMENT_SHADER,
+	)
 	if err != nil {
 		return err
 	}
@@ -423,11 +151,11 @@ func (a *App) initGL() error {
 
 	gl.BindVertexArray(0)
 
-	bgVertShader, err := compileShader(backgroundVertexShader, gl.VERTEX_SHADER)
+	bgVertShader, err := shaders.CompileShader(shaders.BackgroundVertexShader, gl.VERTEX_SHADER)
 	if err != nil {
 		return err
 	}
-	bgFragShader, err := compileShader(backgroundFragmentShader, gl.FRAGMENT_SHADER)
+	bgFragShader, err := shaders.CompileShader(shaders.BackgroundFragmentShader, gl.FRAGMENT_SHADER)
 	if err != nil {
 		return err
 	}
@@ -468,11 +196,17 @@ func (a *App) initGL() error {
 
 	gl.BindVertexArray(0)
 
-	cursorGlowVertShader, err := compileShader(cursorGlowVertexShader, gl.VERTEX_SHADER)
+	cursorGlowVertShader, err := shaders.CompileShader(
+		shaders.CursorGlowVertexShader,
+		gl.VERTEX_SHADER,
+	)
 	if err != nil {
 		return err
 	}
-	cursorGlowFragShader, err := compileShader(cursorGlowFragmentShader, gl.FRAGMENT_SHADER)
+	cursorGlowFragShader, err := shaders.CompileShader(
+		shaders.CursorGlowFragmentShader,
+		gl.FRAGMENT_SHADER,
+	)
 	if err != nil {
 		return err
 	}
@@ -523,26 +257,6 @@ func (a *App) initGL() error {
 	gl.Enable(gl.PROGRAM_POINT_SIZE)
 
 	return nil
-}
-
-func compileShader(source string, shaderType uint32) (uint32, error) {
-	shader := gl.CreateShader(shaderType)
-	csources, free := gl.Strs(source)
-	gl.ShaderSource(shader, 1, csources, nil)
-	free()
-	gl.CompileShader(shader)
-
-	var status int32
-	gl.GetShaderiv(shader, gl.COMPILE_STATUS, &status)
-	if status == gl.FALSE {
-		var logLength int32
-		gl.GetShaderiv(shader, gl.INFO_LOG_LENGTH, &logLength)
-		logMsg := make([]byte, logLength)
-		gl.GetShaderInfoLog(shader, logLength, nil, &logMsg[0])
-		log.Fatalf("Failed to compile shader: %s", logMsg)
-	}
-
-	return shader, nil
 }
 
 func (a *App) addPoint(x, y float32) {
