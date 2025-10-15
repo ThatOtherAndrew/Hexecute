@@ -1,6 +1,6 @@
 // https://depts.washington.edu/acelab/proj/dollar/dollar.pdf
 
-package main
+package stroke
 
 import (
 	"math"

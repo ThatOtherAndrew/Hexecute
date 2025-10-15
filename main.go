@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/ThatOtherAndrew/Hexecute/internal/models"
+	"github.com/ThatOtherAndrew/Hexecute/internal/stroke"
 	"github.com/ThatOtherAndrew/Hexecute/pkg/wayland"
 	"github.com/go-gl/gl/v4.1-core/gl"
 )
@@ -1013,13 +1014,13 @@ func (a *App) recognizeAndExecute(window *wayland.WaylandWindow, x, y float32) {
 		return
 	}
 
-	processed := ProcessStroke(a.points)
+	processed := stroke.ProcessStroke(a.points)
 
 	bestMatch := -1
 	bestScore := 0.0
 
 	for i, gesture := range a.savedGestures {
-		match, score := UnistrokeRecognise(processed, gesture.Templates)
+		match, score := stroke.UnistrokeRecognise(processed, gesture.Templates)
 		log.Printf("Gesture %d (%s): template %d, score %.3f", i, gesture.Command, match, score)
 
 		if score > bestScore {
@@ -1183,7 +1184,7 @@ func main() {
 			app.isDrawing = false
 
 			if app.learnMode && len(app.points) > 0 {
-				processed := ProcessStroke(app.points)
+				processed := stroke.ProcessStroke(app.points)
 				app.learnGestures = append(app.learnGestures, processed)
 				app.learnCount++
 				log.Printf("Captured gesture %d/3", app.learnCount)
