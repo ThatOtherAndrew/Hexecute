@@ -8,11 +8,11 @@ import (
 	"math/rand"
 	"os"
 	"os/exec"
-	"path/filepath"
 	"runtime"
 	"syscall"
 	"time"
 
+	"github.com/ThatOtherAndrew/Hexecute/internal/config"
 	"github.com/ThatOtherAndrew/Hexecute/internal/models"
 	"github.com/ThatOtherAndrew/Hexecute/internal/shaders"
 	"github.com/ThatOtherAndrew/Hexecute/internal/stroke"
@@ -645,20 +645,8 @@ func (a *App) drawCursorGlow(window *wayland.WaylandWindow, cursorX, cursorY, cu
 	gl.BindVertexArray(0)
 }
 
-func getConfigPath() (string, error) {
-	homeDir, err := os.UserHomeDir()
-	if err != nil {
-		return "", err
-	}
-	configDir := filepath.Join(homeDir, ".config", "hexecute")
-	if err := os.MkdirAll(configDir, 0755); err != nil {
-		return "", err
-	}
-	return filepath.Join(configDir, "gestures.json"), nil
-}
-
 func loadGestures() ([]models.GestureConfig, error) {
-	configFile, err := getConfigPath()
+	configFile, err := config.GetPath()
 	if err != nil {
 		return nil, err
 	}
@@ -680,7 +668,7 @@ func loadGestures() ([]models.GestureConfig, error) {
 }
 
 func saveGesture(command string, templates [][]models.Point) error {
-	configFile, err := getConfigPath()
+	configFile, err := config.GetPath()
 	if err != nil {
 		return err
 	}
@@ -816,7 +804,7 @@ func main() {
 			log.Fatalf("Gesture not found: %s", *removeGesture)
 		}
 
-		configFile, err := getConfigPath()
+		configFile, err := config.GetPath()
 		if err != nil {
 			log.Fatal("Failed to get config path:", err)
 		}
