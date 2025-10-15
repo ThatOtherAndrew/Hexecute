@@ -61,11 +61,11 @@ func (a *App) initGL() error {
 		return err
 	}
 
-	vertShader, err := shaders.CompileShader(shaders.LineVertexShader, gl.VERTEX_SHADER)
+	vertShader, err := shaders.CompileShaderFromFile(shaders.LineVertexPath, gl.VERTEX_SHADER)
 	if err != nil {
 		return err
 	}
-	fragShader, err := shaders.CompileShader(shaders.LineFragmentShader, gl.FRAGMENT_SHADER)
+	fragShader, err := shaders.CompileShaderFromFile(shaders.LineFragmentPath, gl.FRAGMENT_SHADER)
 	if err != nil {
 		return err
 	}
@@ -88,12 +88,15 @@ func (a *App) initGL() error {
 	gl.DeleteShader(vertShader)
 	gl.DeleteShader(fragShader)
 
-	particleVertShader, err := shaders.CompileShader(shaders.ParticleVertexShader, gl.VERTEX_SHADER)
+	particleVertShader, err := shaders.CompileShaderFromFile(
+		shaders.ParticleVertexPath,
+		gl.VERTEX_SHADER,
+	)
 	if err != nil {
 		return err
 	}
-	particleFragShader, err := shaders.CompileShader(
-		shaders.ParticleFragmentShader,
+	particleFragShader, err := shaders.CompileShaderFromFile(
+		shaders.ParticleFragmentPath,
 		gl.FRAGMENT_SHADER,
 	)
 	if err != nil {
@@ -151,11 +154,17 @@ func (a *App) initGL() error {
 
 	gl.BindVertexArray(0)
 
-	bgVertShader, err := shaders.CompileShader(shaders.BackgroundVertexShader, gl.VERTEX_SHADER)
+	bgVertShader, err := shaders.CompileShaderFromFile(
+		shaders.BackgroundVertexPath,
+		gl.VERTEX_SHADER,
+	)
 	if err != nil {
 		return err
 	}
-	bgFragShader, err := shaders.CompileShader(shaders.BackgroundFragmentShader, gl.FRAGMENT_SHADER)
+	bgFragShader, err := shaders.CompileShaderFromFile(
+		shaders.BackgroundFragmentPath,
+		gl.FRAGMENT_SHADER,
+	)
 	if err != nil {
 		return err
 	}
@@ -196,15 +205,15 @@ func (a *App) initGL() error {
 
 	gl.BindVertexArray(0)
 
-	cursorGlowVertShader, err := shaders.CompileShader(
-		shaders.CursorGlowVertexShader,
+	cursorGlowVertShader, err := shaders.CompileShaderFromFile(
+		shaders.CursorGlowVertexPath,
 		gl.VERTEX_SHADER,
 	)
 	if err != nil {
 		return err
 	}
-	cursorGlowFragShader, err := shaders.CompileShader(
-		shaders.CursorGlowFragmentShader,
+	cursorGlowFragShader, err := shaders.CompileShaderFromFile(
+		shaders.CursorGlowFragmentPath,
 		gl.FRAGMENT_SHADER,
 	)
 	if err != nil {

@@ -1,6 +1,3 @@
-package shaders
-
-const ParticleFragmentShader = `
 #version 410 core
 in float vLife;
 in float vHue;
@@ -22,4 +19,3 @@ void main() {
 
 	FragColor = vec4(color, alpha * 0.8);
 }
-` + "\x00"

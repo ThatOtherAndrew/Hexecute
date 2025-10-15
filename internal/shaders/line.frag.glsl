@@ -1,6 +1,3 @@
-package shaders
-
-const LineFragmentShader = `
 #version 410 core
 in float vAlpha;
 in vec2 vPosition;
@@ -23,4 +20,3 @@ void main() {
 
 	FragColor = vec4(color * (1.0 + sparkle * 2.0), vAlpha);
 }
-` + "\x00"

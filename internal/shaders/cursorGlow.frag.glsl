@@ -1,6 +1,3 @@
-package shaders
-
-const CursorGlowFragmentShader = `
 #version 410 core
 in vec2 vTexCoord;
 out vec4 FragColor;
@@ -130,4 +127,3 @@ void main() {
 
 	FragColor = vec4(finalColor, alpha * 0.95);
 }
-` + "\x00"

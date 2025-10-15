@@ -1,16 +1,30 @@
 package shaders
 
 import (
-	"log"
+	"fmt"
+	"os"
+	"strings"
 
-	"github.com/go-gl/gl/v2.1/gl"
+	"github.com/go-gl/gl/v4.1-core/gl"
 )
 
-func CompileShader(source string, shaderType uint32) (uint32, error) {
+func CompileShaderFromFile(path string, shaderType uint32) (uint32, error) {
+	sourceBytes, err := os.ReadFile(path)
+	if err != nil {
+		return 0, fmt.Errorf("failed to read shader file %q: %v", path, err)
+	}
+
+	source := string(sourceBytes)
+
+	if !strings.HasSuffix(source, "\x00") {
+		source += "\x00"
+	}
+
 	shader := gl.CreateShader(shaderType)
 	csources, free := gl.Strs(source)
+	defer free()
+
 	gl.ShaderSource(shader, 1, csources, nil)
-	free()
 	gl.CompileShader(shader)
 
 	var status int32
@@ -18,9 +32,12 @@ func CompileShader(source string, shaderType uint32) (uint32, error) {
 	if status == gl.FALSE {
 		var logLength int32
 		gl.GetShaderiv(shader, gl.INFO_LOG_LENGTH, &logLength)
-		logMsg := make([]byte, logLength)
-		gl.GetShaderInfoLog(shader, logLength, nil, &logMsg[0])
-		log.Fatalf("Failed to compile shader: %s", logMsg)
+
+		logMsg := strings.Repeat("\x00", int(logLength+1))
+		gl.GetShaderInfoLog(shader, logLength, nil, gl.Str(logMsg))
+
+		gl.DeleteShader(shader)
+		return 0, fmt.Errorf("failed to compile %s shader: %v", path, strings.TrimSpace(logMsg))
 	}
 
 	return shader, nil
