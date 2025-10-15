@@ -7,12 +7,11 @@ import (
 	"math"
 	"math/rand"
 	"os"
-	"os/exec"
 	"runtime"
-	"syscall"
 	"time"
 
 	"github.com/ThatOtherAndrew/Hexecute/internal/config"
+	"github.com/ThatOtherAndrew/Hexecute/internal/execute"
 	"github.com/ThatOtherAndrew/Hexecute/internal/models"
 	"github.com/ThatOtherAndrew/Hexecute/internal/shaders"
 	"github.com/ThatOtherAndrew/Hexecute/internal/stroke"
@@ -703,22 +702,6 @@ func saveGesture(command string, templates [][]models.Point) error {
 	return os.WriteFile(configFile, data, 0644)
 }
 
-func executeCommand(command string) error {
-	if command == "" {
-		return nil
-	}
-
-	cmd := exec.Command("sh", "-c", command)
-	cmd.SysProcAttr = &syscall.SysProcAttr{
-		Setsid: true,
-	}
-	cmd.Stdin = nil
-	cmd.Stdout = nil
-	cmd.Stderr = nil
-
-	return cmd.Start()
-}
-
 func (a *App) recognizeAndExecute(window *wayland.WaylandWindow, x, y float32) {
 	if len(a.points) < 5 {
 		log.Println("Gesture too short, ignoring")
@@ -744,7 +727,7 @@ func (a *App) recognizeAndExecute(window *wayland.WaylandWindow, x, y float32) {
 		command := a.savedGestures[bestMatch].Command
 		log.Printf("Matched gesture: %s (score: %.3f)", command, bestScore)
 
-		if err := executeCommand(command); err != nil {
+		if err := execute.Command(command); err != nil {
 			log.Printf("Failed to execute command: %v", err)
 		} else {
 			log.Printf("Executed: %s", command)
