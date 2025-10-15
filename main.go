@@ -1168,7 +1168,7 @@ func main() {
 		app.updateCursor(window)
 
 		if key, state, hasKey := window.GetLastKey(); hasKey {
-			if state == 1 && key == 1 {
+			if state == 1 && key == 0xff1b {
 				if !app.isExiting {
 					app.isExiting = true
 					app.exitStartTime = time.Now()

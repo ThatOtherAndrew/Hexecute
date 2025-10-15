@@ -1,8 +1,8 @@
 package main
 
 /*
-#cgo pkg-config: wayland-client wayland-egl egl gl
-#cgo LDFLAGS: -lwayland-client -lwayland-egl -lEGL -lGL
+#cgo pkg-config: wayland-client wayland-egl egl gl xkbcommon
+#cgo LDFLAGS: -lwayland-client -lwayland-egl -lEGL -lGL -lxkbcommon
 #cgo CFLAGS: -I.
 #include <wayland-client.h>
 #include <wayland-egl.h>
@@ -12,6 +12,8 @@ package main
 #include <unistd.h>
 #include "wlr-layer-shell-client.h"
 #include "keyboard-shortcuts-inhibit-client.h"
+#include <xkbcommon/xkbcommon.h>
+#include <sys/mman.h>
 
 #include <stdbool.h>
 #include <stdint.h>
@@ -121,6 +123,9 @@ struct wl_keyboard *keyboard = NULL;
 struct zwp_keyboard_shortcuts_inhibit_manager_v1 *shortcuts_inhibit_manager = NULL;
 struct zwp_keyboard_shortcuts_inhibitor_v1 *shortcuts_inhibitor = NULL;
 struct zwlr_layer_surface_v1 *layer_surface_global = NULL;
+struct xkb_context *xkb_context;
+struct xkb_keymap *xkb_keymap;
+struct xkb_state *xkb_state;
 int32_t width_global = 0;
 int32_t height_global = 0;
 
@@ -300,7 +305,31 @@ static uint32_t last_key_state = 0;
 
 void keyboard_keymap(void *data, struct wl_keyboard *keyboard, uint32_t format,
                      int32_t fd, uint32_t size) {
+    if (format != WL_KEYBOARD_KEYMAP_FORMAT_XKB_V1) {
+        close(fd);
+        return;
+    }
+
+    char *map_shm = mmap(NULL, size, PROT_READ, MAP_PRIVATE, fd, 0);
+    if (map_shm == MAP_FAILED) {
+        close(fd);
+        return;
+    }
+
+    xkb_keymap = xkb_keymap_new_from_string(xkb_context, map_shm,
+                                            XKB_KEYMAP_FORMAT_TEXT_V1,
+                                            XKB_KEYMAP_COMPILE_NO_FLAGS);
+    munmap(map_shm, size);
     close(fd);
+
+    if (!xkb_keymap) {
+        return;
+    }
+
+    xkb_state = xkb_state_new(xkb_keymap);
+    if (!xkb_state) {
+        return;
+    }
 }
 
 void keyboard_enter(void *data, struct wl_keyboard *keyboard, uint32_t serial,
@@ -313,13 +342,24 @@ void keyboard_leave(void *data, struct wl_keyboard *keyboard, uint32_t serial,
 
 void keyboard_key(void *data, struct wl_keyboard *keyboard, uint32_t serial,
                   uint32_t time, uint32_t key, uint32_t state) {
-    last_key = key;
-    last_key_state = state;
+    if (xkb_state) {
+        xkb_keysym_t sym = xkb_state_key_get_one_sym(xkb_state, key + 8);
+        if (state == WL_KEYBOARD_KEY_STATE_PRESSED) {
+            last_key = sym;
+            last_key_state = 1;
+        } else {
+            last_key = 0;
+            last_key_state = 0;
+        }
+    }
 }
 
 void keyboard_modifiers(void *data, struct wl_keyboard *keyboard, uint32_t serial,
                         uint32_t mods_depressed, uint32_t mods_latched,
                         uint32_t mods_locked, uint32_t group) {
+    if (xkb_state) {
+        xkb_state_update_mask(xkb_state, mods_depressed, mods_latched, mods_locked, 0, 0, group);
+    }
 }
 
 void keyboard_repeat_info(void *data, struct wl_keyboard *keyboard,
@@ -410,6 +450,11 @@ type WaylandWindow struct {
 
 func NewWaylandWindow() (*WaylandWindow, error) {
 	w := &WaylandWindow{}
+
+    C.xkb_context = C.xkb_context_new(C.XKB_CONTEXT_NO_FLAGS)
+    if C.xkb_context == nil {
+        return nil, &WaylandError{"failed to create xkb context"}
+    }
 
 	w.display = C.wl_display_connect(nil)
 	if w.display == nil {
