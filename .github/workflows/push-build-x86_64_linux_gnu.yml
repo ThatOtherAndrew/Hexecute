@@ -1,0 +1,21 @@
+name: build and upload generic release binary
+
+on:
+  push:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: 1.21
+
+      - uses: ./.github/actions/build-x86_64_linux_gnu
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: hexecute
+          path: ./result/bin-x86_64_linux_gnu
