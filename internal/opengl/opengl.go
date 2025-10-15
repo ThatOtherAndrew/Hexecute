@@ -21,11 +21,11 @@ func (a *App) InitGL() error {
 		return err
 	}
 
-	vertShader, err := shaders.CompileShaderFromFile(shaders.LineVertexPath, gl.VERTEX_SHADER)
+	vertShader, err := shaders.CompileShaderFromSource(shaders.LineVertex, gl.VERTEX_SHADER)
 	if err != nil {
 		return err
 	}
-	fragShader, err := shaders.CompileShaderFromFile(shaders.LineFragmentPath, gl.FRAGMENT_SHADER)
+	fragShader, err := shaders.CompileShaderFromSource(shaders.LineFragment, gl.FRAGMENT_SHADER)
 	if err != nil {
 		return err
 	}
@@ -48,15 +48,15 @@ func (a *App) InitGL() error {
 	gl.DeleteShader(vertShader)
 	gl.DeleteShader(fragShader)
 
-	particleVertShader, err := shaders.CompileShaderFromFile(
-		shaders.ParticleVertexPath,
+	particleVertShader, err := shaders.CompileShaderFromSource(
+		shaders.ParticleVertex,
 		gl.VERTEX_SHADER,
 	)
 	if err != nil {
 		return err
 	}
-	particleFragShader, err := shaders.CompileShaderFromFile(
-		shaders.ParticleFragmentPath,
+	particleFragShader, err := shaders.CompileShaderFromSource(
+		shaders.ParticleFragment,
 		gl.FRAGMENT_SHADER,
 	)
 	if err != nil {
@@ -114,15 +114,15 @@ func (a *App) InitGL() error {
 
 	gl.BindVertexArray(0)
 
-	bgVertShader, err := shaders.CompileShaderFromFile(
-		shaders.BackgroundVertexPath,
+	bgVertShader, err := shaders.CompileShaderFromSource(
+		shaders.BackgroundVertex,
 		gl.VERTEX_SHADER,
 	)
 	if err != nil {
 		return err
 	}
-	bgFragShader, err := shaders.CompileShaderFromFile(
-		shaders.BackgroundFragmentPath,
+	bgFragShader, err := shaders.CompileShaderFromSource(
+		shaders.BackgroundFragment,
 		gl.FRAGMENT_SHADER,
 	)
 	if err != nil {
@@ -165,15 +165,15 @@ func (a *App) InitGL() error {
 
 	gl.BindVertexArray(0)
 
-	cursorGlowVertShader, err := shaders.CompileShaderFromFile(
-		shaders.CursorGlowVertexPath,
+	cursorGlowVertShader, err := shaders.CompileShaderFromSource(
+		shaders.CursorGlowVertex,
 		gl.VERTEX_SHADER,
 	)
 	if err != nil {
 		return err
 	}
-	cursorGlowFragShader, err := shaders.CompileShaderFromFile(
-		shaders.CursorGlowFragmentPath,
+	cursorGlowFragShader, err := shaders.CompileShaderFromSource(
+		shaders.CursorGlowFragment,
 		gl.FRAGMENT_SHADER,
 	)
 	if err != nil {
