@@ -14,4 +14,4 @@ jobs:
       - name: publish binary to release page
         uses: softprops/action-gh-release@v2
         with:
-          files: result/bin/hexecute
+          files: result/bin/hexecute-x86_64_linux_nix
