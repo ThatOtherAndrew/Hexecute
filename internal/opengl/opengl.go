@@ -88,9 +88,9 @@ func (a *App) InitGL() error {
 
 	gl.VertexAttribPointer(0, 2, gl.FLOAT, false, 5*4, nil)
 	gl.EnableVertexAttribArray(0)
-	gl.VertexAttribPointer(1, 2, gl.FLOAT, false, 5*4, gl.PtrOffset(2*4))
+	gl.VertexAttribPointerWithOffset(1, 2, gl.FLOAT, false, 5*4, 2*4)
 	gl.EnableVertexAttribArray(1)
-	gl.VertexAttribPointer(2, 1, gl.FLOAT, false, 5*4, gl.PtrOffset(4*4))
+	gl.VertexAttribPointerWithOffset(2, 1, gl.FLOAT, false, 5*4, 4*4)
 	gl.EnableVertexAttribArray(2)
 
 	gl.BindVertexArray(0)
@@ -103,13 +103,13 @@ func (a *App) InitGL() error {
 
 	gl.VertexAttribPointer(0, 2, gl.FLOAT, false, 6*4, nil)
 	gl.EnableVertexAttribArray(0)
-	gl.VertexAttribPointer(1, 1, gl.FLOAT, false, 6*4, gl.PtrOffset(2*4))
+	gl.VertexAttribPointerWithOffset(1, 1, gl.FLOAT, false, 6*4, 2*4)
 	gl.EnableVertexAttribArray(1)
-	gl.VertexAttribPointer(2, 1, gl.FLOAT, false, 6*4, gl.PtrOffset(3*4))
+	gl.VertexAttribPointerWithOffset(2, 1, gl.FLOAT, false, 6*4, 3*4)
 	gl.EnableVertexAttribArray(2)
-	gl.VertexAttribPointer(3, 1, gl.FLOAT, false, 6*4, gl.PtrOffset(4*4))
+	gl.VertexAttribPointerWithOffset(3, 1, gl.FLOAT, false, 6*4, 4*4)
 	gl.EnableVertexAttribArray(3)
-	gl.VertexAttribPointer(4, 1, gl.FLOAT, false, 6*4, gl.PtrOffset(5*4))
+	gl.VertexAttribPointerWithOffset(4, 1, gl.FLOAT, false, 6*4, 5*4)
 	gl.EnableVertexAttribArray(4)
 
 	gl.BindVertexArray(0)
