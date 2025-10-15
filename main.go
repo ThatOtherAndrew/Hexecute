@@ -13,55 +13,10 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/ThatOtherAndrew/Hexecute/internal/models"
 	"github.com/ThatOtherAndrew/Hexecute/pkg/wayland"
 	"github.com/go-gl/gl/v4.1-core/gl"
 )
-
-type Point struct {
-	X, Y     float32
-	BornTime time.Time `json:"-"`
-}
-
-type Particle struct {
-	X, Y    float32
-	VX, VY  float32
-	Life    float32
-	MaxLife float32
-	Size    float32
-	Hue     float32
-}
-
-type App struct {
-	points            []Point
-	particles         []Particle
-	isDrawing         bool
-	vao               uint32
-	vbo               uint32
-	program           uint32
-	particleVAO       uint32
-	particleVBO       uint32
-	particleProgram   uint32
-	bgVAO             uint32
-	bgVBO             uint32
-	bgProgram         uint32
-	cursorGlowVAO     uint32
-	cursorGlowVBO     uint32
-	cursorGlowProgram uint32
-	startTime         time.Time
-	lastCursorX       float32
-	lastCursorY       float32
-	cursorVelocity    float32
-	smoothVelocity    float32
-	smoothRotation    float32
-	smoothDrawing     float32
-	isExiting         bool
-	exitStartTime     time.Time
-	learnMode         bool
-	learnCommand      string
-	learnGestures     [][]Point
-	learnCount        int
-	savedGestures     []GestureConfig
-}
 
 const lineVertexShader = `
 #version 410 core
@@ -343,6 +298,38 @@ func init() {
 	runtime.LockOSThread()
 }
 
+type App struct {
+	points            []models.Point
+	particles         []models.Particle
+	isDrawing         bool
+	vao               uint32
+	vbo               uint32
+	program           uint32
+	particleVAO       uint32
+	particleVBO       uint32
+	particleProgram   uint32
+	bgVAO             uint32
+	bgVBO             uint32
+	bgProgram         uint32
+	cursorGlowVAO     uint32
+	cursorGlowVBO     uint32
+	cursorGlowProgram uint32
+	startTime         time.Time
+	lastCursorX       float32
+	lastCursorY       float32
+	cursorVelocity    float32
+	smoothVelocity    float32
+	smoothRotation    float32
+	smoothDrawing     float32
+	isExiting         bool
+	exitStartTime     time.Time
+	learnMode         bool
+	learnCommand      string
+	learnGestures     [][]models.Point
+	learnCount        int
+	savedGestures     []models.GestureConfig
+}
+
 func (a *App) initGL() error {
 	if err := gl.Init(); err != nil {
 		return err
@@ -518,7 +505,12 @@ func (a *App) initGL() error {
 		-1.0, 1.0,
 		1.0, 1.0,
 	}
-	gl.BufferData(gl.ARRAY_BUFFER, len(glowQuadVertices)*4, gl.Ptr(glowQuadVertices), gl.STATIC_DRAW)
+	gl.BufferData(
+		gl.ARRAY_BUFFER,
+		len(glowQuadVertices)*4,
+		gl.Ptr(glowQuadVertices),
+		gl.STATIC_DRAW,
+	)
 
 	gl.VertexAttribPointer(0, 2, gl.FLOAT, false, 2*4, nil)
 	gl.EnableVertexAttribArray(0)
@@ -553,7 +545,7 @@ func compileShader(source string, shaderType uint32) (uint32, error) {
 }
 
 func (a *App) addPoint(x, y float32) {
-	newPoint := Point{X: x, Y: y, BornTime: time.Now()}
+	newPoint := models.Point{X: x, Y: y, BornTime: time.Now()}
 
 	shouldAdd := false
 	if len(a.points) == 0 {
@@ -568,7 +560,7 @@ func (a *App) addPoint(x, y float32) {
 			for range 3 {
 				angle := rand.Float64() * 2 * math.Pi
 				speed := rand.Float32()*50 + 20
-				a.particles = append(a.particles, Particle{
+				a.particles = append(a.particles, models.Particle{
 					X:       x + (rand.Float32()-0.5)*10,
 					Y:       y + (rand.Float32()-0.5)*10,
 					VX:      float32(math.Cos(angle)) * speed,
@@ -596,7 +588,7 @@ func (a *App) spawnCursorSparkles(x, y float32) {
 	for range 3 {
 		angle := rand.Float64() * 2 * math.Pi
 		speed := rand.Float32()*80 + 40
-		a.particles = append(a.particles, Particle{
+		a.particles = append(a.particles, models.Particle{
 			X:       x + (rand.Float32()-0.5)*8,
 			Y:       y + (rand.Float32()-0.5)*8,
 			VX:      float32(math.Cos(angle)) * speed,
@@ -613,7 +605,7 @@ func (a *App) spawnExitWisps(x, y float32) {
 	for range 8 {
 		angle := rand.Float64() * 2 * math.Pi
 		speed := rand.Float32()*150 + 80
-		a.particles = append(a.particles, Particle{
+		a.particles = append(a.particles, models.Particle{
 			X:       x + (rand.Float32()-0.5)*30,
 			Y:       y + (rand.Float32()-0.5)*30,
 			VX:      float32(math.Cos(angle)) * speed,
@@ -701,7 +693,10 @@ func (a *App) draw(window *wayland.WaylandWindow) {
 	a.drawParticles(window)
 }
 
-func (a *App) drawLine(window *wayland.WaylandWindow, baseThickness, baseAlpha, currentTime float32) {
+func (a *App) drawLine(
+	window *wayland.WaylandWindow,
+	baseThickness, baseAlpha, currentTime float32,
+) {
 	if len(a.points) < 2 {
 		return
 	}
@@ -926,11 +921,6 @@ func (a *App) drawCursorGlow(window *wayland.WaylandWindow, cursorX, cursorY, cu
 	gl.BindVertexArray(0)
 }
 
-type GestureConfig struct {
-	Command   string    `json:"command"`
-	Templates [][]Point `json:"templates"`
-}
-
 func getConfigPath() (string, error) {
 	homeDir, err := os.UserHomeDir()
 	if err != nil {
@@ -943,7 +933,7 @@ func getConfigPath() (string, error) {
 	return filepath.Join(configDir, "gestures.json"), nil
 }
 
-func loadGestures() ([]GestureConfig, error) {
+func loadGestures() ([]models.GestureConfig, error) {
 	configFile, err := getConfigPath()
 	if err != nil {
 		return nil, err
@@ -952,12 +942,12 @@ func loadGestures() ([]GestureConfig, error) {
 	data, err := os.ReadFile(configFile)
 	if err != nil {
 		if os.IsNotExist(err) {
-			return []GestureConfig{}, nil
+			return []models.GestureConfig{}, nil
 		}
 		return nil, err
 	}
 
-	var gestures []GestureConfig
+	var gestures []models.GestureConfig
 	if err := json.Unmarshal(data, &gestures); err != nil {
 		return nil, err
 	}
@@ -965,18 +955,18 @@ func loadGestures() ([]GestureConfig, error) {
 	return gestures, nil
 }
 
-func saveGesture(command string, templates [][]Point) error {
+func saveGesture(command string, templates [][]models.Point) error {
 	configFile, err := getConfigPath()
 	if err != nil {
 		return err
 	}
 
-	var gestures []GestureConfig
+	var gestures []models.GestureConfig
 	if data, err := os.ReadFile(configFile); err == nil {
 		json.Unmarshal(data, &gestures)
 	}
 
-	newGesture := GestureConfig{
+	newGesture := models.GestureConfig{
 		Command:   command,
 		Templates: templates,
 	}

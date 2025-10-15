@@ -2,9 +2,15 @@
 
 package main
 
-import "math"
+import (
+	"math"
+
+	"github.com/ThatOtherAndrew/Hexecute/internal/models"
+)
 
 // Step 1
+
+type Point = models.Point
 
 func resample(points []Point, n int) []Point {
 	I := pathLength(points) / float32(n-1)
@@ -110,7 +116,11 @@ func centroid(points []Point) Point {
 
 // Step 4
 
-func recognise(points []Point, templates [][]Point, size float64) (bestMatch int, bestScore float64) {
+func recognise(
+	points []Point,
+	templates [][]Point,
+	size float64,
+) (bestMatch int, bestScore float64) {
 	b := math.Inf(1)
 	for i, T := range templates {
 		d := distanceAtBestAngle(points, T, -math.Pi/4, math.Pi/4, math.Pi/90)
