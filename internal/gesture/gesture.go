@@ -38,7 +38,9 @@ func SaveGesture(command string, templates [][]models.Point) error {
 
 	var gestures []models.GestureConfig
 	if data, err := os.ReadFile(configFile); err == nil {
-		json.Unmarshal(data, &gestures)
+		if err := json.Unmarshal(data, &gestures); err != nil {
+			return err
+		}
 	}
 
 	newGesture := models.GestureConfig{
