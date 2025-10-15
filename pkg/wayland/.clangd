@@ -1,0 +1,4 @@
+Diagnostics:
+  Suppress:
+    - keyword_as_parameter
+    - expected_expression

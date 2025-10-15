@@ -13,6 +13,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/ThatOtherAndrew/Hexecute/pkg/wayland"
 	"github.com/go-gl/gl/v4.1-core/gl"
 )
 
@@ -641,7 +642,7 @@ func (a *App) updateParticles(dt float32) {
 	}
 }
 
-func (a *App) updateCursor(window *WaylandWindow) {
+func (a *App) updateCursor(window *wayland.WaylandWindow) {
 	x, y := window.GetCursorPos()
 	fx, fy := float32(x), float32(y)
 
@@ -681,7 +682,7 @@ func (a *App) updateCursor(window *WaylandWindow) {
 	a.lastCursorY = fy
 }
 
-func (a *App) draw(window *WaylandWindow) {
+func (a *App) draw(window *wayland.WaylandWindow) {
 	gl.Clear(gl.COLOR_BUFFER_BIT)
 
 	currentTime := float32(time.Since(a.startTime).Seconds())
@@ -700,7 +701,7 @@ func (a *App) draw(window *WaylandWindow) {
 	a.drawParticles(window)
 }
 
-func (a *App) drawLine(window *WaylandWindow, baseThickness, baseAlpha, currentTime float32) {
+func (a *App) drawLine(window *wayland.WaylandWindow, baseThickness, baseAlpha, currentTime float32) {
 	if len(a.points) < 2 {
 		return
 	}
@@ -789,7 +790,7 @@ func (a *App) drawLine(window *WaylandWindow, baseThickness, baseAlpha, currentT
 	gl.BindVertexArray(0)
 }
 
-func (a *App) drawParticles(window *WaylandWindow) {
+func (a *App) drawParticles(window *wayland.WaylandWindow) {
 	if len(a.particles) == 0 {
 		return
 	}
@@ -813,7 +814,7 @@ func (a *App) drawParticles(window *WaylandWindow) {
 	gl.BindVertexArray(0)
 }
 
-func (a *App) drawBackground(currentTime float32, window *WaylandWindow) {
+func (a *App) drawBackground(currentTime float32, window *wayland.WaylandWindow) {
 	fadeDuration := float32(1.0)
 	targetAlpha := float32(0.75)
 
@@ -861,7 +862,7 @@ func (a *App) drawBackground(currentTime float32, window *WaylandWindow) {
 	gl.BlendFunc(gl.SRC_ALPHA, gl.ONE)
 }
 
-func (a *App) drawCursorGlow(window *WaylandWindow, cursorX, cursorY, currentTime float32) {
+func (a *App) drawCursorGlow(window *wayland.WaylandWindow, cursorX, cursorY, currentTime float32) {
 	width, height := window.GetSize()
 
 	growDuration := float32(1.2)
@@ -1016,7 +1017,7 @@ func executeCommand(command string) error {
 	return cmd.Start()
 }
 
-func (a *App) recognizeAndExecute(window *WaylandWindow, x, y float32) {
+func (a *App) recognizeAndExecute(window *wayland.WaylandWindow, x, y float32) {
 	if len(a.points) < 5 {
 		log.Println("Gesture too short, ignoring")
 		return
@@ -1119,7 +1120,7 @@ func main() {
 		return
 	}
 
-	window, err := NewWaylandWindow()
+	window, err := wayland.NewWaylandWindow()
 	if err != nil {
 		log.Fatal("Failed to create Wayland window:", err)
 	}
