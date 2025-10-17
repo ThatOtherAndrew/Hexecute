@@ -10,7 +10,7 @@ import (
 
 	"github.com/ThatOtherAndrew/Hexecute/internal/config"
 	"github.com/ThatOtherAndrew/Hexecute/internal/draw"
-	"github.com/ThatOtherAndrew/Hexecute/internal/fornow"
+	"github.com/ThatOtherAndrew/Hexecute/internal/execute"
 	gestures "github.com/ThatOtherAndrew/Hexecute/internal/gesture"
 	"github.com/ThatOtherAndrew/Hexecute/internal/models"
 	"github.com/ThatOtherAndrew/Hexecute/internal/opengl"
@@ -190,8 +190,8 @@ func main() {
 				}
 			} else if !app.LearnMode && len(app.Points) > 0 {
 				x, y := window.GetCursorPos()
-				fornow := fornow.New(app)
-				fornow.RecognizeAndExecute(window, float32(x), float32(y))
+				exec := execute.New(app)
+				exec.RecognizeAndExecute(window, float32(x), float32(y))
 				app.Points = nil
 			}
 		}
@@ -199,8 +199,8 @@ func main() {
 
 		if app.IsDrawing {
 			x, y := window.GetCursorPos()
-			fornow := fornow.New(app)
-			fornow.AddPoint(float32(x), float32(y))
+			gesture := gestures.New(app)
+			gesture.AddPoint(float32(x), float32(y))
 
 			spawn := spawn.New(app)
 			spawn.SpawnCursorSparkles(float32(x), float32(y))
