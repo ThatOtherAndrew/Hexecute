@@ -1,4 +1,4 @@
-module hexecute
+module github.com/ThatOtherAndrew/Hexecute
 
 go 1.25.1
 
