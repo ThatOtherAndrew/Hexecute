@@ -3,17 +3,18 @@
 #ifndef KEYBOARD_SHORTCUTS_INHIBIT_UNSTABLE_V1_CLIENT_PROTOCOL_H
 #define KEYBOARD_SHORTCUTS_INHIBIT_UNSTABLE_V1_CLIENT_PROTOCOL_H
 
-#include <stdint.h>
-#include <stddef.h>
 #include "wayland-client.h"
+#include <stddef.h>
+#include <stdint.h>
 
-#ifdef  __cplusplus
+#ifdef __cplusplus
 extern "C" {
 #endif
 
 /**
- * @page page_keyboard_shortcuts_inhibit_unstable_v1 The keyboard_shortcuts_inhibit_unstable_v1 protocol
- * Protocol for inhibiting the compositor keyboard shortcuts
+ * @page page_keyboard_shortcuts_inhibit_unstable_v1 The
+ * keyboard_shortcuts_inhibit_unstable_v1 protocol Protocol for inhibiting the
+ * compositor keyboard shortcuts
  *
  * @section page_desc_keyboard_shortcuts_inhibit_unstable_v1 Description
  *
@@ -33,8 +34,10 @@ extern "C" {
  * reset.
  *
  * @section page_ifaces_keyboard_shortcuts_inhibit_unstable_v1 Interfaces
- * - @subpage page_iface_zwp_keyboard_shortcuts_inhibit_manager_v1 - context object for keyboard grab_manager
- * - @subpage page_iface_zwp_keyboard_shortcuts_inhibitor_v1 - context object for keyboard shortcuts inhibitor
+ * - @subpage page_iface_zwp_keyboard_shortcuts_inhibit_manager_v1 - context
+ * object for keyboard grab_manager
+ * - @subpage page_iface_zwp_keyboard_shortcuts_inhibitor_v1 - context object
+ * for keyboard shortcuts inhibitor
  * @section page_copyright_keyboard_shortcuts_inhibit_unstable_v1 Copyright
  * <pre>
  *
@@ -68,24 +71,29 @@ struct zwp_keyboard_shortcuts_inhibitor_v1;
 #ifndef ZWP_KEYBOARD_SHORTCUTS_INHIBIT_MANAGER_V1_INTERFACE
 #define ZWP_KEYBOARD_SHORTCUTS_INHIBIT_MANAGER_V1_INTERFACE
 /**
- * @page page_iface_zwp_keyboard_shortcuts_inhibit_manager_v1 zwp_keyboard_shortcuts_inhibit_manager_v1
- * @section page_iface_zwp_keyboard_shortcuts_inhibit_manager_v1_desc Description
+ * @page page_iface_zwp_keyboard_shortcuts_inhibit_manager_v1
+ * zwp_keyboard_shortcuts_inhibit_manager_v1
+ * @section page_iface_zwp_keyboard_shortcuts_inhibit_manager_v1_desc
+ * Description
  *
  * A global interface used for inhibiting the compositor keyboard shortcuts.
  * @section page_iface_zwp_keyboard_shortcuts_inhibit_manager_v1_api API
  * See @ref iface_zwp_keyboard_shortcuts_inhibit_manager_v1.
  */
 /**
- * @defgroup iface_zwp_keyboard_shortcuts_inhibit_manager_v1 The zwp_keyboard_shortcuts_inhibit_manager_v1 interface
+ * @defgroup iface_zwp_keyboard_shortcuts_inhibit_manager_v1 The
+ * zwp_keyboard_shortcuts_inhibit_manager_v1 interface
  *
  * A global interface used for inhibiting the compositor keyboard shortcuts.
  */
-extern const struct wl_interface zwp_keyboard_shortcuts_inhibit_manager_v1_interface;
+extern const struct wl_interface
+    zwp_keyboard_shortcuts_inhibit_manager_v1_interface;
 #endif
 #ifndef ZWP_KEYBOARD_SHORTCUTS_INHIBITOR_V1_INTERFACE
 #define ZWP_KEYBOARD_SHORTCUTS_INHIBITOR_V1_INTERFACE
 /**
- * @page page_iface_zwp_keyboard_shortcuts_inhibitor_v1 zwp_keyboard_shortcuts_inhibitor_v1
+ * @page page_iface_zwp_keyboard_shortcuts_inhibitor_v1
+ * zwp_keyboard_shortcuts_inhibitor_v1
  * @section page_iface_zwp_keyboard_shortcuts_inhibitor_v1_desc Description
  *
  * A keyboard shortcuts inhibitor instructs the compositor to ignore
@@ -125,7 +133,8 @@ extern const struct wl_interface zwp_keyboard_shortcuts_inhibit_manager_v1_inter
  * See @ref iface_zwp_keyboard_shortcuts_inhibitor_v1.
  */
 /**
- * @defgroup iface_zwp_keyboard_shortcuts_inhibitor_v1 The zwp_keyboard_shortcuts_inhibitor_v1 interface
+ * @defgroup iface_zwp_keyboard_shortcuts_inhibitor_v1 The
+ * zwp_keyboard_shortcuts_inhibitor_v1 interface
  *
  * A keyboard shortcuts inhibitor instructs the compositor to ignore
  * its own keyboard shortcuts when the associated surface has keyboard
@@ -167,16 +176,15 @@ extern const struct wl_interface zwp_keyboard_shortcuts_inhibitor_v1_interface;
 #ifndef ZWP_KEYBOARD_SHORTCUTS_INHIBIT_MANAGER_V1_ERROR_ENUM
 #define ZWP_KEYBOARD_SHORTCUTS_INHIBIT_MANAGER_V1_ERROR_ENUM
 enum zwp_keyboard_shortcuts_inhibit_manager_v1_error {
-	/**
-	 * the shortcuts are already inhibited for this surface
-	 */
-	ZWP_KEYBOARD_SHORTCUTS_INHIBIT_MANAGER_V1_ERROR_ALREADY_INHIBITED = 0,
+  /**
+   * the shortcuts are already inhibited for this surface
+   */
+  ZWP_KEYBOARD_SHORTCUTS_INHIBIT_MANAGER_V1_ERROR_ALREADY_INHIBITED = 0,
 };
 #endif /* ZWP_KEYBOARD_SHORTCUTS_INHIBIT_MANAGER_V1_ERROR_ENUM */
 
 #define ZWP_KEYBOARD_SHORTCUTS_INHIBIT_MANAGER_V1_DESTROY 0
 #define ZWP_KEYBOARD_SHORTCUTS_INHIBIT_MANAGER_V1_INHIBIT_SHORTCUTS 1
-
 
 /**
  * @ingroup iface_zwp_keyboard_shortcuts_inhibit_manager_v1
@@ -185,26 +193,31 @@ enum zwp_keyboard_shortcuts_inhibit_manager_v1_error {
 /**
  * @ingroup iface_zwp_keyboard_shortcuts_inhibit_manager_v1
  */
-#define ZWP_KEYBOARD_SHORTCUTS_INHIBIT_MANAGER_V1_INHIBIT_SHORTCUTS_SINCE_VERSION 1
+#define ZWP_KEYBOARD_SHORTCUTS_INHIBIT_MANAGER_V1_INHIBIT_SHORTCUTS_SINCE_VERSION \
+  1
 
 /** @ingroup iface_zwp_keyboard_shortcuts_inhibit_manager_v1 */
-static inline void
-zwp_keyboard_shortcuts_inhibit_manager_v1_set_user_data(struct zwp_keyboard_shortcuts_inhibit_manager_v1 *zwp_keyboard_shortcuts_inhibit_manager_v1, void *user_data)
-{
-	wl_proxy_set_user_data((struct wl_proxy *) zwp_keyboard_shortcuts_inhibit_manager_v1, user_data);
+static inline void zwp_keyboard_shortcuts_inhibit_manager_v1_set_user_data(
+    struct zwp_keyboard_shortcuts_inhibit_manager_v1
+        *zwp_keyboard_shortcuts_inhibit_manager_v1,
+    void *user_data) {
+  wl_proxy_set_user_data(
+      (struct wl_proxy *)zwp_keyboard_shortcuts_inhibit_manager_v1, user_data);
 }
 
 /** @ingroup iface_zwp_keyboard_shortcuts_inhibit_manager_v1 */
-static inline void *
-zwp_keyboard_shortcuts_inhibit_manager_v1_get_user_data(struct zwp_keyboard_shortcuts_inhibit_manager_v1 *zwp_keyboard_shortcuts_inhibit_manager_v1)
-{
-	return wl_proxy_get_user_data((struct wl_proxy *) zwp_keyboard_shortcuts_inhibit_manager_v1);
+static inline void *zwp_keyboard_shortcuts_inhibit_manager_v1_get_user_data(
+    struct zwp_keyboard_shortcuts_inhibit_manager_v1
+        *zwp_keyboard_shortcuts_inhibit_manager_v1) {
+  return wl_proxy_get_user_data(
+      (struct wl_proxy *)zwp_keyboard_shortcuts_inhibit_manager_v1);
 }
 
-static inline uint32_t
-zwp_keyboard_shortcuts_inhibit_manager_v1_get_version(struct zwp_keyboard_shortcuts_inhibit_manager_v1 *zwp_keyboard_shortcuts_inhibit_manager_v1)
-{
-	return wl_proxy_get_version((struct wl_proxy *) zwp_keyboard_shortcuts_inhibit_manager_v1);
+static inline uint32_t zwp_keyboard_shortcuts_inhibit_manager_v1_get_version(
+    struct zwp_keyboard_shortcuts_inhibit_manager_v1
+        *zwp_keyboard_shortcuts_inhibit_manager_v1) {
+  return wl_proxy_get_version(
+      (struct wl_proxy *)zwp_keyboard_shortcuts_inhibit_manager_v1);
 }
 
 /**
@@ -212,11 +225,15 @@ zwp_keyboard_shortcuts_inhibit_manager_v1_get_version(struct zwp_keyboard_shortc
  *
  * Destroy the keyboard shortcuts inhibitor manager.
  */
-static inline void
-zwp_keyboard_shortcuts_inhibit_manager_v1_destroy(struct zwp_keyboard_shortcuts_inhibit_manager_v1 *zwp_keyboard_shortcuts_inhibit_manager_v1)
-{
-	wl_proxy_marshal_flags((struct wl_proxy *) zwp_keyboard_shortcuts_inhibit_manager_v1,
-			 ZWP_KEYBOARD_SHORTCUTS_INHIBIT_MANAGER_V1_DESTROY, NULL, wl_proxy_get_version((struct wl_proxy *) zwp_keyboard_shortcuts_inhibit_manager_v1), WL_MARSHAL_FLAG_DESTROY);
+static inline void zwp_keyboard_shortcuts_inhibit_manager_v1_destroy(
+    struct zwp_keyboard_shortcuts_inhibit_manager_v1
+        *zwp_keyboard_shortcuts_inhibit_manager_v1) {
+  wl_proxy_marshal_flags(
+      (struct wl_proxy *)zwp_keyboard_shortcuts_inhibit_manager_v1,
+      ZWP_KEYBOARD_SHORTCUTS_INHIBIT_MANAGER_V1_DESTROY, NULL,
+      wl_proxy_get_version(
+          (struct wl_proxy *)zwp_keyboard_shortcuts_inhibit_manager_v1),
+      WL_MARSHAL_FLAG_DESTROY);
 }
 
 /**
@@ -229,14 +246,21 @@ zwp_keyboard_shortcuts_inhibit_manager_v1_destroy(struct zwp_keyboard_shortcuts_
  * a protocol error "already_inhibited" is raised by the compositor.
  */
 static inline struct zwp_keyboard_shortcuts_inhibitor_v1 *
-zwp_keyboard_shortcuts_inhibit_manager_v1_inhibit_shortcuts(struct zwp_keyboard_shortcuts_inhibit_manager_v1 *zwp_keyboard_shortcuts_inhibit_manager_v1, struct wl_surface *surface, struct wl_seat *seat)
-{
-	struct wl_proxy *id;
+zwp_keyboard_shortcuts_inhibit_manager_v1_inhibit_shortcuts(
+    struct zwp_keyboard_shortcuts_inhibit_manager_v1
+        *zwp_keyboard_shortcuts_inhibit_manager_v1,
+    struct wl_surface *surface, struct wl_seat *seat) {
+  struct wl_proxy *id;
 
-	id = wl_proxy_marshal_flags((struct wl_proxy *) zwp_keyboard_shortcuts_inhibit_manager_v1,
-			 ZWP_KEYBOARD_SHORTCUTS_INHIBIT_MANAGER_V1_INHIBIT_SHORTCUTS, &zwp_keyboard_shortcuts_inhibitor_v1_interface, wl_proxy_get_version((struct wl_proxy *) zwp_keyboard_shortcuts_inhibit_manager_v1), 0, NULL, surface, seat);
+  id = wl_proxy_marshal_flags(
+      (struct wl_proxy *)zwp_keyboard_shortcuts_inhibit_manager_v1,
+      ZWP_KEYBOARD_SHORTCUTS_INHIBIT_MANAGER_V1_INHIBIT_SHORTCUTS,
+      &zwp_keyboard_shortcuts_inhibitor_v1_interface,
+      wl_proxy_get_version(
+          (struct wl_proxy *)zwp_keyboard_shortcuts_inhibit_manager_v1),
+      0, NULL, surface, seat);
 
-	return (struct zwp_keyboard_shortcuts_inhibitor_v1 *) id;
+  return (struct zwp_keyboard_shortcuts_inhibitor_v1 *)id;
 }
 
 /**
@@ -244,42 +268,44 @@ zwp_keyboard_shortcuts_inhibit_manager_v1_inhibit_shortcuts(struct zwp_keyboard_
  * @struct zwp_keyboard_shortcuts_inhibitor_v1_listener
  */
 struct zwp_keyboard_shortcuts_inhibitor_v1_listener {
-	/**
-	 * shortcuts are inhibited
-	 *
-	 * This event indicates that the shortcut inhibitor is active.
-	 *
-	 * The compositor sends this event every time compositor shortcuts
-	 * are inhibited on behalf of the surface. When active, the client
-	 * may receive input events normally reserved by the compositor
-	 * (see zwp_keyboard_shortcuts_inhibitor_v1).
-	 *
-	 * This occurs typically when the initial request
-	 * "inhibit_shortcuts" first becomes active or when the user
-	 * instructs the compositor to re-enable and existing shortcuts
-	 * inhibitor using any mechanism offered by the compositor.
-	 */
-	void (*active)(void *data,
-		       struct zwp_keyboard_shortcuts_inhibitor_v1 *zwp_keyboard_shortcuts_inhibitor_v1);
-	/**
-	 * shortcuts are restored
-	 *
-	 * This event indicates that the shortcuts inhibitor is inactive,
-	 * normal shortcuts processing is restored by the compositor.
-	 */
-	void (*inactive)(void *data,
-			 struct zwp_keyboard_shortcuts_inhibitor_v1 *zwp_keyboard_shortcuts_inhibitor_v1);
+  /**
+   * shortcuts are inhibited
+   *
+   * This event indicates that the shortcut inhibitor is active.
+   *
+   * The compositor sends this event every time compositor shortcuts
+   * are inhibited on behalf of the surface. When active, the client
+   * may receive input events normally reserved by the compositor
+   * (see zwp_keyboard_shortcuts_inhibitor_v1).
+   *
+   * This occurs typically when the initial request
+   * "inhibit_shortcuts" first becomes active or when the user
+   * instructs the compositor to re-enable and existing shortcuts
+   * inhibitor using any mechanism offered by the compositor.
+   */
+  void (*active)(void *data, struct zwp_keyboard_shortcuts_inhibitor_v1
+                                 *zwp_keyboard_shortcuts_inhibitor_v1);
+  /**
+   * shortcuts are restored
+   *
+   * This event indicates that the shortcuts inhibitor is inactive,
+   * normal shortcuts processing is restored by the compositor.
+   */
+  void (*inactive)(void *data, struct zwp_keyboard_shortcuts_inhibitor_v1
+                                   *zwp_keyboard_shortcuts_inhibitor_v1);
 };
 
 /**
  * @ingroup iface_zwp_keyboard_shortcuts_inhibitor_v1
  */
-static inline int
-zwp_keyboard_shortcuts_inhibitor_v1_add_listener(struct zwp_keyboard_shortcuts_inhibitor_v1 *zwp_keyboard_shortcuts_inhibitor_v1,
-						 const struct zwp_keyboard_shortcuts_inhibitor_v1_listener *listener, void *data)
-{
-	return wl_proxy_add_listener((struct wl_proxy *) zwp_keyboard_shortcuts_inhibitor_v1,
-				     (void (**)(void)) listener, data);
+static inline int zwp_keyboard_shortcuts_inhibitor_v1_add_listener(
+    struct zwp_keyboard_shortcuts_inhibitor_v1
+        *zwp_keyboard_shortcuts_inhibitor_v1,
+    const struct zwp_keyboard_shortcuts_inhibitor_v1_listener *listener,
+    void *data) {
+  return wl_proxy_add_listener(
+      (struct wl_proxy *)zwp_keyboard_shortcuts_inhibitor_v1,
+      (void (**)(void))listener, data);
 }
 
 #define ZWP_KEYBOARD_SHORTCUTS_INHIBITOR_V1_DESTROY 0
@@ -299,23 +325,27 @@ zwp_keyboard_shortcuts_inhibitor_v1_add_listener(struct zwp_keyboard_shortcuts_i
 #define ZWP_KEYBOARD_SHORTCUTS_INHIBITOR_V1_DESTROY_SINCE_VERSION 1
 
 /** @ingroup iface_zwp_keyboard_shortcuts_inhibitor_v1 */
-static inline void
-zwp_keyboard_shortcuts_inhibitor_v1_set_user_data(struct zwp_keyboard_shortcuts_inhibitor_v1 *zwp_keyboard_shortcuts_inhibitor_v1, void *user_data)
-{
-	wl_proxy_set_user_data((struct wl_proxy *) zwp_keyboard_shortcuts_inhibitor_v1, user_data);
+static inline void zwp_keyboard_shortcuts_inhibitor_v1_set_user_data(
+    struct zwp_keyboard_shortcuts_inhibitor_v1
+        *zwp_keyboard_shortcuts_inhibitor_v1,
+    void *user_data) {
+  wl_proxy_set_user_data((struct wl_proxy *)zwp_keyboard_shortcuts_inhibitor_v1,
+                         user_data);
 }
 
 /** @ingroup iface_zwp_keyboard_shortcuts_inhibitor_v1 */
-static inline void *
-zwp_keyboard_shortcuts_inhibitor_v1_get_user_data(struct zwp_keyboard_shortcuts_inhibitor_v1 *zwp_keyboard_shortcuts_inhibitor_v1)
-{
-	return wl_proxy_get_user_data((struct wl_proxy *) zwp_keyboard_shortcuts_inhibitor_v1);
+static inline void *zwp_keyboard_shortcuts_inhibitor_v1_get_user_data(
+    struct zwp_keyboard_shortcuts_inhibitor_v1
+        *zwp_keyboard_shortcuts_inhibitor_v1) {
+  return wl_proxy_get_user_data(
+      (struct wl_proxy *)zwp_keyboard_shortcuts_inhibitor_v1);
 }
 
-static inline uint32_t
-zwp_keyboard_shortcuts_inhibitor_v1_get_version(struct zwp_keyboard_shortcuts_inhibitor_v1 *zwp_keyboard_shortcuts_inhibitor_v1)
-{
-	return wl_proxy_get_version((struct wl_proxy *) zwp_keyboard_shortcuts_inhibitor_v1);
+static inline uint32_t zwp_keyboard_shortcuts_inhibitor_v1_get_version(
+    struct zwp_keyboard_shortcuts_inhibitor_v1
+        *zwp_keyboard_shortcuts_inhibitor_v1) {
+  return wl_proxy_get_version(
+      (struct wl_proxy *)zwp_keyboard_shortcuts_inhibitor_v1);
 }
 
 /**
@@ -323,14 +353,18 @@ zwp_keyboard_shortcuts_inhibitor_v1_get_version(struct zwp_keyboard_shortcuts_in
  *
  * Remove the keyboard shortcuts inhibitor from the associated wl_surface.
  */
-static inline void
-zwp_keyboard_shortcuts_inhibitor_v1_destroy(struct zwp_keyboard_shortcuts_inhibitor_v1 *zwp_keyboard_shortcuts_inhibitor_v1)
-{
-	wl_proxy_marshal_flags((struct wl_proxy *) zwp_keyboard_shortcuts_inhibitor_v1,
-			 ZWP_KEYBOARD_SHORTCUTS_INHIBITOR_V1_DESTROY, NULL, wl_proxy_get_version((struct wl_proxy *) zwp_keyboard_shortcuts_inhibitor_v1), WL_MARSHAL_FLAG_DESTROY);
+static inline void zwp_keyboard_shortcuts_inhibitor_v1_destroy(
+    struct zwp_keyboard_shortcuts_inhibitor_v1
+        *zwp_keyboard_shortcuts_inhibitor_v1) {
+  wl_proxy_marshal_flags(
+      (struct wl_proxy *)zwp_keyboard_shortcuts_inhibitor_v1,
+      ZWP_KEYBOARD_SHORTCUTS_INHIBITOR_V1_DESTROY, NULL,
+      wl_proxy_get_version(
+          (struct wl_proxy *)zwp_keyboard_shortcuts_inhibitor_v1),
+      WL_MARSHAL_FLAG_DESTROY);
 }
 
-#ifdef  __cplusplus
+#ifdef __cplusplus
 }
 #endif
 

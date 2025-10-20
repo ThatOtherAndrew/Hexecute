@@ -1,2 +1,5 @@
-result/
-hexecute
+# go build -o bin ./...
+bin/
+
+# nix build (produces a symlink)
+result
