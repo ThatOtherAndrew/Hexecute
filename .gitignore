@@ -1,2 +1,5 @@
+# go build -o bin ./...
 bin/
-result/
+
+# nix build (produces a symlink)
+result
