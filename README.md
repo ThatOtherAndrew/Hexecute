@@ -58,8 +58,9 @@ If you have [Nix](https://nixos.org/) installed, simply run `nix build`.
 
 Otherwise, make sure you have Go (and all dependent Wayland (and X11!?) libs) installed, then run:
 ```bash
-go build
-./hexecute
+mkdir -p bin
+go build -o bin ./...
+./bin/hexecute
 ```
 
 ## Usage
