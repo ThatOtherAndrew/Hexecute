@@ -1,8 +1,8 @@
 #ifndef WAYLAND_H
 #define WAYLAND_H
 
-#include "wlr-layer-shell-client.h"
 #include "tablet-v2.h"
+#include "wlr-layer-shell-client.h"
 #include <EGL/egl.h>
 #include <stdlib.h>
 #include <wayland-client.h>
@@ -41,87 +41,83 @@ void pointer_axis_stop(void *data, struct wl_pointer *pointer, uint32_t time,
 void pointer_axis_discrete(void *data, struct wl_pointer *pointer,
                            uint32_t axis, int32_t discrete);
 
-void touch_down(void* data, struct wl_touch *wl_touch, uint serial, uint time, struct wl_surface *surface, int id, wl_fixed_t x, wl_fixed_t y);
+void touch_down(void *data, struct wl_touch *wl_touch, uint serial, uint time,
+                struct wl_surface *surface, int id, wl_fixed_t x, wl_fixed_t y);
 
-void touch_up(void* data, struct wl_touch *wl_touch, uint serial, uint time, int id);
+void touch_up(void *data, struct wl_touch *wl_touch, uint serial, uint time,
+              int id);
 
-void touch_motion(void* data, struct wl_touch *wl_touch, uint time, int id, wl_fixed_t x, wl_fixed_t y);
+void touch_motion(void *data, struct wl_touch *wl_touch, uint time, int id,
+                  wl_fixed_t x, wl_fixed_t y);
 
-void touch_frame(void* data, struct wl_touch *wl_touch);
+void touch_frame(void *data, struct wl_touch *wl_touch);
 
-void touch_cancel(void* data, struct wl_touch *wl_touch);
+void touch_cancel(void *data, struct wl_touch *wl_touch);
 
-void touch_shape(void *data, struct wl_touch *wl_touch, int32_t id, wl_fixed_t major, wl_fixed_t minor);
+void touch_shape(void *data, struct wl_touch *wl_touch, int32_t id,
+                 wl_fixed_t major, wl_fixed_t minor);
 
-void touch_orientation(void *data, struct wl_touch *wl_touch, int32_t id, wl_fixed_t orientation);
+void touch_orientation(void *data, struct wl_touch *wl_touch, int32_t id,
+                       wl_fixed_t orientation);
 
-void tablet_added(void *data,
-		struct zwp_tablet_seat_v2 *zwp_tablet_seat_v2,
-		struct zwp_tablet_v2 *zwp_tablet_v2);
+void tablet_added(void *data, struct zwp_tablet_seat_v2 *zwp_tablet_seat_v2,
+                  struct zwp_tablet_v2 *zwp_tablet_v2);
 
-void tool_added(void *data,
-		struct zwp_tablet_seat_v2 *zwp_tablet_seat_v2,
-		struct zwp_tablet_tool_v2 *zwp_tablet_tool_v2);
+void tool_added(void *data, struct zwp_tablet_seat_v2 *zwp_tablet_seat_v2,
+                struct zwp_tablet_tool_v2 *zwp_tablet_tool_v2);
 
-void tablet_tool_removed(void *data,
-		struct zwp_tablet_tool_v2 *id);
+void tablet_tool_removed(void *data, struct zwp_tablet_tool_v2 *id);
 
 void tablet_tool_down(void *data, struct zwp_tablet_tool_v2 *id,
-		unsigned int serial);
+                      unsigned int serial);
 
 void tablet_tool_up(void *data, struct zwp_tablet_tool_v2 *id);
 
-void tablet_tool_motion(void *data, struct zwp_tablet_tool_v2 *id,
-		wl_fixed_t x, wl_fixed_t y);
+void tablet_tool_motion(void *data, struct zwp_tablet_tool_v2 *id, wl_fixed_t x,
+                        wl_fixed_t y);
 
-void tablet_tool_type(void *data,
-		struct zwp_tablet_tool_v2 *id, uint32_t tool_type);
+void tablet_tool_type(void *data, struct zwp_tablet_tool_v2 *id,
+                      uint32_t tool_type);
 
-void tablet_tool_serial(void *data,
-		struct zwp_tablet_tool_v2 *id, uint32_t high, uint32_t low);
+void tablet_tool_serial(void *data, struct zwp_tablet_tool_v2 *id,
+                        uint32_t high, uint32_t low);
 
-void tablet_tool_id_wacom(void *data,
-		struct zwp_tablet_tool_v2 *id, uint32_t high, uint32_t low);
+void tablet_tool_id_wacom(void *data, struct zwp_tablet_tool_v2 *id,
+                          uint32_t high, uint32_t low);
 
-void tablet_tool_capability(void *data,
-		struct zwp_tablet_tool_v2 *id, uint32_t capability);
+void tablet_tool_capability(void *data, struct zwp_tablet_tool_v2 *id,
+                            uint32_t capability);
 
-void tablet_tool_proximity_in(void *data,
-		struct zwp_tablet_tool_v2 *id, uint32_t serial,
-		struct zwp_tablet_v2 *tablet_id, struct wl_surface *surface);
+void tablet_tool_proximity_in(void *data, struct zwp_tablet_tool_v2 *id,
+                              uint32_t serial, struct zwp_tablet_v2 *tablet_id,
+                              struct wl_surface *surface);
 
-void tablet_tool_proximity_out(void *data,
-		struct zwp_tablet_tool_v2 *id);
+void tablet_tool_proximity_out(void *data, struct zwp_tablet_tool_v2 *id);
 
-void tablet_tool_pressure(void *data,
-		struct zwp_tablet_tool_v2 *id, uint32_t pressure);
+void tablet_tool_pressure(void *data, struct zwp_tablet_tool_v2 *id,
+                          uint32_t pressure);
 
-void tablet_tool_distance(void *data,
-		struct zwp_tablet_tool_v2 *id, uint32_t distance);
+void tablet_tool_distance(void *data, struct zwp_tablet_tool_v2 *id,
+                          uint32_t distance);
 
-void tablet_tool_tilt(void *data, struct zwp_tablet_tool_v2 *id,
-		wl_fixed_t x, wl_fixed_t y);
+void tablet_tool_tilt(void *data, struct zwp_tablet_tool_v2 *id, wl_fixed_t x,
+                      wl_fixed_t y);
 
-void tablet_tool_rotation(void *data,
-		struct zwp_tablet_tool_v2 *id, wl_fixed_t rotation);
+void tablet_tool_rotation(void *data, struct zwp_tablet_tool_v2 *id,
+                          wl_fixed_t rotation);
 
-
-void tablet_tool_slider(void *data, struct zwp_tablet_tool_v2 *id,
-		int slider);
+void tablet_tool_slider(void *data, struct zwp_tablet_tool_v2 *id, int slider);
 
 void tablet_tool_wheel(void *data, struct zwp_tablet_tool_v2 *id,
-		wl_fixed_t degree, int clicks);
+                       wl_fixed_t degree, int clicks);
 
-void tablet_tool_button(void *data,
-		struct zwp_tablet_tool_v2 *id,
-		uint32_t serial, uint32_t button, uint32_t state);
+void tablet_tool_button(void *data, struct zwp_tablet_tool_v2 *id,
+                        uint32_t serial, uint32_t button, uint32_t state);
 
-void tablet_tool_frame(void *data,
-		struct zwp_tablet_tool_v2 *id,
-		uint32_t time);
+void tablet_tool_frame(void *data, struct zwp_tablet_tool_v2 *id,
+                       uint32_t time);
 
-void tablet_tool_done(void *data,
-		struct zwp_tablet_tool_v2 *id);
+void tablet_tool_done(void *data, struct zwp_tablet_tool_v2 *id);
 
 void keyboard_keymap(void *data, struct wl_keyboard *keyboard, uint32_t format,
                      int32_t fd, uint32_t size);
