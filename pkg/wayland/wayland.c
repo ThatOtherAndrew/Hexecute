@@ -116,7 +116,6 @@ struct wl_seat *seat = NULL;
 struct wl_pointer *pointer = NULL;
 struct wl_touch *touch = NULL;
 struct wl_keyboard *keyboard = NULL;
-// struct zwp_tablet_manager_v2_interface *tablet_manager_interface = NULL;
 struct zwp_tablet_manager_v2 *tablet_manager = NULL;
 struct zwp_tablet_tool_v2 *tablet_tool = NULL;
 struct zwp_tablet_seat_v2 *tablet_seat = NULL;
@@ -253,7 +252,7 @@ void disable_all_input() {
 static int button_state = 0;
 static double mouse_x = 0;
 static double mouse_y = 0;
-static int32_t touch_id = 255555;
+static int32_t touch_id = -1;
 
 void pointer_enter(void *data, struct wl_pointer *pointer, uint32_t serial,
                    struct wl_surface *surface, wl_fixed_t x, wl_fixed_t y) {
@@ -324,72 +323,21 @@ void tablet_tool_motion(void *data, struct zwp_tablet_tool_v2 *id,
     mouse_y = wl_fixed_to_double(y);
 }
 
-void tablet_tool_type(void *data,
-		struct zwp_tablet_tool_v2 *id, uint32_t tool_type) {
-}
-
-void tablet_tool_serial(void *data,
-		struct zwp_tablet_tool_v2 *id, uint32_t high, uint32_t low) {
-}
-
-void tablet_tool_id_wacom(void *data,
-		struct zwp_tablet_tool_v2 *id, uint32_t high, uint32_t low) {
-}
-
-void tablet_tool_capability(void *data,
-		struct zwp_tablet_tool_v2 *id, uint32_t capability) {
-}
-
-void tablet_tool_proximity_in(void *data,
-		struct zwp_tablet_tool_v2 *id, uint32_t serial,
-		struct zwp_tablet_v2 *tablet_id, struct wl_surface *surface) {
-}
-
-void tablet_tool_proximity_out(void *data,
-		struct zwp_tablet_tool_v2 *id) {
-}
-
-void tablet_tool_pressure(void *data,
-		struct zwp_tablet_tool_v2 *id, uint32_t pressure) {
-}
-
-void tablet_tool_distance(void *data,
-		struct zwp_tablet_tool_v2 *id, uint32_t distance) {
-}
-
-void tablet_tool_tilt(void *data, struct zwp_tablet_tool_v2 *id,
-		wl_fixed_t x, wl_fixed_t y) {
-}
-
-void tablet_tool_rotation(void *data,
-		struct zwp_tablet_tool_v2 *id, wl_fixed_t rotation) {
-}
-
-
-void tablet_tool_slider(void *data, struct zwp_tablet_tool_v2 *id,
-		int slider) {
-}
-
-void tablet_tool_wheel(void *data, struct zwp_tablet_tool_v2 *id,
-		wl_fixed_t degree, int clicks) {
-}
-
-void tablet_tool_button(void *data,
-		struct zwp_tablet_tool_v2 *id,
-		uint32_t serial, uint32_t button, uint32_t state) {
-}
-
-void tablet_tool_frame(void *data,
-		struct zwp_tablet_tool_v2 *id,
-		uint32_t time) {
-}
-
-
-void tablet_tool_done(void *data,
-		struct zwp_tablet_tool_v2 *id) {
-	/* empty */
-}
-
+void tablet_tool_type(void *data, struct zwp_tablet_tool_v2 *id, uint32_t tool_type) {}
+void tablet_tool_serial(void *data, struct zwp_tablet_tool_v2 *id, uint32_t high, uint32_t low) {}
+void tablet_tool_id_wacom(void *data, struct zwp_tablet_tool_v2 *id, uint32_t high, uint32_t low) {}
+void tablet_tool_capability(void *data, struct zwp_tablet_tool_v2 *id, uint32_t capability) {}
+void tablet_tool_proximity_in(void *data, struct zwp_tablet_tool_v2 *id, uint32_t serial, struct zwp_tablet_v2 *tablet_id, struct wl_surface *surface) {}
+void tablet_tool_proximity_out(void *data, struct zwp_tablet_tool_v2 *id) {}
+void tablet_tool_pressure(void *data, struct zwp_tablet_tool_v2 *id, uint32_t pressure) {}
+void tablet_tool_distance(void *data, struct zwp_tablet_tool_v2 *id, uint32_t distance) {}
+void tablet_tool_tilt(void *data, struct zwp_tablet_tool_v2 *id, wl_fixed_t x, wl_fixed_t y) {}
+void tablet_tool_rotation(void *data, struct zwp_tablet_tool_v2 *id, wl_fixed_t rotation) {}
+void tablet_tool_slider(void *data, struct zwp_tablet_tool_v2 *id, int slider) {}
+void tablet_tool_wheel(void *data, struct zwp_tablet_tool_v2 *id, wl_fixed_t degree, int clicks) {}
+void tablet_tool_button(void *data, struct zwp_tablet_tool_v2 *id, uint32_t serial, uint32_t button, uint32_t state) {}
+void tablet_tool_frame(void *data, struct zwp_tablet_tool_v2 *id, uint32_t time) {}
+void tablet_tool_done(void *data, struct zwp_tablet_tool_v2 *id) {}
 
 static const struct zwp_tablet_tool_v2_listener tablet_tool_listener = {
   .removed = tablet_tool_removed,
@@ -433,12 +381,11 @@ void tool_added(void *data,
 static const struct zwp_tablet_seat_v2_listener tablet_seat_listener = {
   .tool_added = tool_added,
   .tablet_added = tablet_added,
-  // .pad_added = pad_added
 };
 
 
 void touch_down(void* data, struct wl_touch *wl_touch, uint serial, uint time, struct wl_surface *surface, int id, wl_fixed_t x, wl_fixed_t y) {
-  if (touch_id == 255555) {
+  if (touch_id == -1) {
     mouse_x = wl_fixed_to_double(x);
     mouse_y = wl_fixed_to_double(y);
     touch_id = id;
@@ -448,33 +395,22 @@ void touch_down(void* data, struct wl_touch *wl_touch, uint serial, uint time, s
 
 void touch_up(void* data, struct wl_touch *wl_touch, uint serial, uint time, int id) {
   if (touch_id == id) {
-    touch_id = 255555;
+    touch_id = -1;
     button_state = 0;
   }
 }
 
 void touch_motion(void* data, struct wl_touch *wl_touch, uint time, int id, wl_fixed_t x, wl_fixed_t y) {
-  mouse_x = wl_fixed_to_double(x);
-  mouse_y = wl_fixed_to_double(y);
+  if (touch_id == id) {
+    mouse_x = wl_fixed_to_double(x);
+    mouse_y = wl_fixed_to_double(y);
+  }
 }
 
-void touch_frame(void* data, struct wl_touch *wl_touch) {
-  
-}
-
-void touch_cancel(void* data, struct wl_touch *wl_touch) {
-  
-}
-
-void touch_shape(void *data, struct wl_touch *wl_touch,
-               int32_t id, wl_fixed_t major, wl_fixed_t minor) {
-  
-}
-
-void touch_orientation(void *data, struct wl_touch *wl_touch,
-               int32_t id, wl_fixed_t orientation) {
-
-}
+void touch_frame(void* data, struct wl_touch *wl_touch) {}
+void touch_cancel(void* data, struct wl_touch *wl_touch) {}
+void touch_shape(void *data, struct wl_touch *wl_touch, int32_t id, wl_fixed_t major, wl_fixed_t minor) {}
+void touch_orientation(void *data, struct wl_touch *wl_touch, int32_t id, wl_fixed_t orientation) {}
 
 static const struct wl_touch_listener touch_listener = {
   .down = touch_down,
@@ -583,9 +519,6 @@ void seat_capabilities(void *data, struct wl_seat *seat,
     touch = wl_seat_get_touch(seat);
     wl_touch_add_listener(touch, &touch_listener, NULL);
   }
-	// tablet_manager = tablet_manager_interface;
-	  // seat->backend->tablet_manager;
-	// 	"zwp_tablet_manager_v2", 2,
 
   tablet_seat = zwp_tablet_manager_v2_get_tablet_seat(tablet_manager, seat);
   zwp_tablet_seat_v2_add_listener(tablet_seat, &tablet_seat_listener, seat);
