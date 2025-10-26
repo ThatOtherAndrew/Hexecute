@@ -116,7 +116,6 @@ struct wl_seat *seat = NULL;
 struct wl_pointer *pointer = NULL;
 struct wl_touch *touch = NULL;
 struct wl_keyboard *keyboard = NULL;
-// struct zwp_tablet_manager_v2_interface *tablet_manager_interface = NULL;
 struct zwp_tablet_manager_v2 *tablet_manager = NULL;
 struct zwp_tablet_tool_v2 *tablet_tool = NULL;
 struct zwp_tablet_seat_v2 *tablet_seat = NULL;
@@ -433,7 +432,6 @@ void tool_added(void *data,
 static const struct zwp_tablet_seat_v2_listener tablet_seat_listener = {
   .tool_added = tool_added,
   .tablet_added = tablet_added,
-  // .pad_added = pad_added
 };
 
 
@@ -583,9 +581,6 @@ void seat_capabilities(void *data, struct wl_seat *seat,
     touch = wl_seat_get_touch(seat);
     wl_touch_add_listener(touch, &touch_listener, NULL);
   }
-	// tablet_manager = tablet_manager_interface;
-	  // seat->backend->tablet_manager;
-	// 	"zwp_tablet_manager_v2", 2,
 
   tablet_seat = zwp_tablet_manager_v2_get_tablet_seat(tablet_manager, seat);
   zwp_tablet_seat_v2_add_listener(tablet_seat, &tablet_seat_listener, seat);
