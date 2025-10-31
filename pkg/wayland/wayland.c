@@ -1,5 +1,6 @@
 #include "wayland.h"
 #include "keyboard-shortcuts-inhibit-client.h"
+#include "tablet-v2.h"
 #include "wlr-layer-shell-client.h"
 #include <stdbool.h>
 #include <stdint.h>
@@ -113,7 +114,11 @@ struct wl_compositor *compositor = NULL;
 struct zwlr_layer_shell_v1 *layer_shell = NULL;
 struct wl_seat *seat = NULL;
 struct wl_pointer *pointer = NULL;
+struct wl_touch *touch = NULL;
 struct wl_keyboard *keyboard = NULL;
+struct zwp_tablet_manager_v2 *tablet_manager = NULL;
+struct zwp_tablet_tool_v2 *tablet_tool = NULL;
+struct zwp_tablet_seat_v2 *tablet_seat = NULL;
 struct zwp_keyboard_shortcuts_inhibit_manager_v1 *shortcuts_inhibit_manager =
     NULL;
 struct zwp_keyboard_shortcuts_inhibitor_v1 *shortcuts_inhibitor = NULL;
@@ -163,6 +168,9 @@ void registry_global(void *data, struct wl_registry *registry, uint32_t name,
         (struct zwp_keyboard_shortcuts_inhibit_manager_v1 *)wl_registry_bind(
             registry, name,
             &zwp_keyboard_shortcuts_inhibit_manager_v1_interface, 1);
+  } else if (strcmp(interface, zwp_tablet_manager_v2_interface.name) == 0) {
+    tablet_manager = (struct zwp_tablet_manager_v2 *)wl_registry_bind(
+        registry, name, &zwp_tablet_manager_v2_interface, 1);
   }
 }
 
@@ -198,7 +206,6 @@ struct zwlr_layer_surface_v1 *create_layer_surface(struct wl_surface *surface) {
                                        ZWLR_LAYER_SURFACE_V1_ANCHOR_RIGHT);
 
   zwlr_layer_surface_v1_set_exclusive_zone(layer_surface_global, -1);
-
   zwlr_layer_surface_v1_set_keyboard_interactivity(
       layer_surface_global,
       ZWLR_LAYER_SURFACE_V1_KEYBOARD_INTERACTIVITY_EXCLUSIVE);
@@ -244,6 +251,7 @@ void disable_all_input() {
 static int button_state = 0;
 static double mouse_x = 0;
 static double mouse_y = 0;
+static int32_t touch_id = -1;
 
 void pointer_enter(void *data, struct wl_pointer *pointer, uint32_t serial,
                    struct wl_surface *surface, wl_fixed_t x, wl_fixed_t y) {
@@ -292,6 +300,154 @@ static const struct wl_pointer_listener pointer_listener = {
     .axis_source = pointer_axis_source,
     .axis_stop = pointer_axis_stop,
     .axis_discrete = pointer_axis_discrete,
+};
+
+void tablet_tool_removed(void *data, struct zwp_tablet_tool_v2 *id) {
+  button_state = 0;
+}
+
+void tablet_tool_down(void *data, struct zwp_tablet_tool_v2 *id,
+                      unsigned int serial) {
+  button_state = 1;
+}
+
+void tablet_tool_up(void *data, struct zwp_tablet_tool_v2 *id) {
+  button_state = 0;
+}
+
+void tablet_tool_motion(void *data, struct zwp_tablet_tool_v2 *id, wl_fixed_t x,
+                        wl_fixed_t y) {
+  mouse_x = wl_fixed_to_double(x);
+  mouse_y = wl_fixed_to_double(y);
+}
+
+void tablet_tool_type(void *data, struct zwp_tablet_tool_v2 *id,
+                      uint32_t tool_type) {}
+
+void tablet_tool_serial(void *data, struct zwp_tablet_tool_v2 *id,
+                        uint32_t high, uint32_t low) {}
+
+void tablet_tool_id_wacom(void *data, struct zwp_tablet_tool_v2 *id,
+                          uint32_t high, uint32_t low) {}
+
+void tablet_tool_capability(void *data, struct zwp_tablet_tool_v2 *id,
+                            uint32_t capability) {}
+
+void tablet_tool_proximity_in(void *data, struct zwp_tablet_tool_v2 *id,
+                              uint32_t serial, struct zwp_tablet_v2 *tablet_id,
+                              struct wl_surface *surface) {}
+
+void tablet_tool_proximity_out(void *data, struct zwp_tablet_tool_v2 *id) {}
+
+void tablet_tool_pressure(void *data, struct zwp_tablet_tool_v2 *id,
+                          uint32_t pressure) {}
+
+void tablet_tool_distance(void *data, struct zwp_tablet_tool_v2 *id,
+                          uint32_t distance) {}
+
+void tablet_tool_tilt(void *data, struct zwp_tablet_tool_v2 *id, wl_fixed_t x,
+                      wl_fixed_t y) {}
+
+void tablet_tool_rotation(void *data, struct zwp_tablet_tool_v2 *id,
+                          wl_fixed_t rotation) {}
+
+void tablet_tool_slider(void *data, struct zwp_tablet_tool_v2 *id, int slider) {
+}
+
+void tablet_tool_wheel(void *data, struct zwp_tablet_tool_v2 *id,
+                       wl_fixed_t degree, int clicks) {}
+
+void tablet_tool_button(void *data, struct zwp_tablet_tool_v2 *id,
+                        uint32_t serial, uint32_t button, uint32_t state) {}
+
+void tablet_tool_frame(void *data, struct zwp_tablet_tool_v2 *id,
+                       uint32_t time) {}
+
+void tablet_tool_done(void *data, struct zwp_tablet_tool_v2 *id) { /* empty */ }
+
+static const struct zwp_tablet_tool_v2_listener tablet_tool_listener = {
+    .removed = tablet_tool_removed,
+    .down = tablet_tool_down,
+    .up = tablet_tool_up,
+    .motion = tablet_tool_motion,
+
+    .type = tablet_tool_type,
+    .hardware_serial = tablet_tool_serial,
+    .hardware_id_wacom = tablet_tool_id_wacom,
+    .capability = tablet_tool_capability,
+    .done = tablet_tool_done,
+
+    .proximity_in = tablet_tool_proximity_in,
+    .proximity_out = tablet_tool_proximity_out,
+    .pressure = tablet_tool_pressure,
+    .distance = tablet_tool_distance,
+    .tilt = tablet_tool_tilt,
+    .rotation = tablet_tool_rotation,
+    .slider = tablet_tool_slider,
+    .wheel = tablet_tool_wheel,
+    .button = tablet_tool_button,
+    .frame = tablet_tool_frame,
+};
+
+void tablet_added(void *data, struct zwp_tablet_seat_v2 *zwp_tablet_seat_v2,
+                  struct zwp_tablet_v2 *zwp_tablet_v2) {}
+
+void tool_added(void *data, struct zwp_tablet_seat_v2 *zwp_tablet_seat_v2,
+                struct zwp_tablet_tool_v2 *zwp_tablet_tool_v2) {
+  tablet_tool = zwp_tablet_tool_v2;
+  zwp_tablet_tool_v2_add_listener(tablet_tool, &tablet_tool_listener, NULL);
+}
+
+static const struct zwp_tablet_seat_v2_listener tablet_seat_listener = {
+    .tool_added = tool_added,
+    .tablet_added = tablet_added,
+};
+
+void touch_down(void *data, struct wl_touch *wl_touch, uint serial, uint time,
+                struct wl_surface *surface, int id, wl_fixed_t x,
+                wl_fixed_t y) {
+  if (touch_id == -1) {
+    mouse_x = wl_fixed_to_double(x);
+    mouse_y = wl_fixed_to_double(y);
+    touch_id = id;
+    button_state = 1;
+  }
+}
+
+void touch_up(void *data, struct wl_touch *wl_touch, uint serial, uint time,
+              int id) {
+  if (touch_id == id) {
+    touch_id = -1;
+    button_state = 0;
+  }
+}
+
+void touch_motion(void *data, struct wl_touch *wl_touch, uint time, int id,
+                  wl_fixed_t x, wl_fixed_t y) {
+  if (touch_id == id) {
+    mouse_x = wl_fixed_to_double(x);
+    mouse_y = wl_fixed_to_double(y);
+  }
+}
+
+void touch_frame(void *data, struct wl_touch *wl_touch) {}
+
+void touch_cancel(void *data, struct wl_touch *wl_touch) {}
+
+void touch_shape(void *data, struct wl_touch *wl_touch, int32_t id,
+                 wl_fixed_t major, wl_fixed_t minor) {}
+
+void touch_orientation(void *data, struct wl_touch *wl_touch, int32_t id,
+                       wl_fixed_t orientation) {}
+
+static const struct wl_touch_listener touch_listener = {
+    .down = touch_down,
+    .up = touch_up,
+    .motion = touch_motion,
+    .frame = touch_frame,
+    .cancel = touch_cancel,
+    .shape = touch_shape,
+    .orientation = touch_orientation,
 };
 
 static uint32_t last_key = 0;
@@ -386,6 +542,13 @@ void seat_capabilities(void *data, struct wl_seat *seat,
               shortcuts_inhibit_manager, surface_global, seat);
     }
   }
+  if (capabilities & WL_SEAT_CAPABILITY_TOUCH) {
+    touch = wl_seat_get_touch(seat);
+    wl_touch_add_listener(touch, &touch_listener, NULL);
+  }
+
+  tablet_seat = zwp_tablet_manager_v2_get_tablet_seat(tablet_manager, seat);
+  zwp_tablet_seat_v2_add_listener(tablet_seat, &tablet_seat_listener, seat);
 }
 
 void seat_name(void *data, struct wl_seat *seat, const char *name) {}

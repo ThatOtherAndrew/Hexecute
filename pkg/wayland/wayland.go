@@ -5,6 +5,7 @@ package wayland
 #cgo LDFLAGS: -lwayland-client -lwayland-egl -lEGL -lGL -lxkbcommon
 #cgo CFLAGS: -I.
 #include "wayland.h"
+#include "wayland-client.h"
 */
 import "C"
 import (
