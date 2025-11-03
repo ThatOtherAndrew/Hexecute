@@ -98,7 +98,15 @@ func main() {
 	}
 	defer window.Destroy()
 
-	app := &models.App{StartTime: time.Now()}
+	settings, err := config.LoadSettings()
+	if err != nil {
+		log.Fatal("Failed to load settings:", err)
+	}
+
+	app := &models.App{
+		StartTime: time.Now(),
+		Settings:  settings,
+	}
 
 	if *learnCommand != "" {
 		app.LearnMode = true

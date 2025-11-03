@@ -2,6 +2,8 @@ package models
 
 import (
 	"time"
+
+	"github.com/ThatOtherAndrew/Hexecute/internal/config"
 )
 
 type Point struct {
@@ -53,4 +55,5 @@ type App struct {
 	LearnGestures     [][]Point
 	LearnCount        int
 	SavedGestures     []GestureConfig
+	Settings          *config.Settings
 }
