@@ -2,6 +2,7 @@ package config
 
 import (
 	"encoding/json"
+	"log"
 	"os"
 	"path/filepath"
 )
@@ -55,7 +56,15 @@ func LoadSettings() (*Settings, error) {
 
 	settings := &Settings{}
 	if err := json.Unmarshal(data, settings); err != nil {
-		return defaultSettings, err
+		log.Printf("Invalid settings file, using defaults: %v", err)
+		return defaultSettings, nil
+	}
+
+	// Validate and clamp overlay_alpha to [0, 1]
+	if settings.OverlayAlpha < 0.0 || settings.OverlayAlpha > 1.0 {
+		log.Printf("Invalid overlay_alpha value %.2f, must be between 0.0 and 1.0, using default %.2f",
+			settings.OverlayAlpha, defaultSettings.OverlayAlpha)
+		settings.OverlayAlpha = defaultSettings.OverlayAlpha
 	}
 
 	return settings, nil
