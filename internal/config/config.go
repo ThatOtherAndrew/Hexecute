@@ -49,6 +49,10 @@ func LoadSettings() (*Settings, error) {
 	data, err := os.ReadFile(settingsPath)
 	if err != nil {
 		if os.IsNotExist(err) {
+			log.Printf("Creating default settings file at %s", settingsPath)
+			if err := createDefaultSettings(settingsPath, defaultSettings); err != nil {
+				log.Printf("Failed to create default settings file: %v", err)
+			}
 			return defaultSettings, nil
 		}
 		return nil, err
@@ -68,4 +72,12 @@ func LoadSettings() (*Settings, error) {
 	}
 
 	return settings, nil
+}
+
+func createDefaultSettings(path string, settings *Settings) error {
+	data, err := json.MarshalIndent(settings, "", "  ")
+	if err != nil {
+		return err
+	}
+	return os.WriteFile(path, data, 0644)
 }
