@@ -96,6 +96,6 @@ To configure a gesture to launch an application, run `hexecute --learn [command]
 
 To view all your configured gestures, run `hexecute --list` in a terminal.
 
-To delete a previously assigned gesture, use the `hexecute --delete [gesture]` command.
+To delete a previously assigned gesture, use the `hexecute --remove [gesture]` command.
 
 All gestures are saved in the `~/.config/hexecute/gestures.json` file. This file can be manually shared, edited, backed up, or swapped.
