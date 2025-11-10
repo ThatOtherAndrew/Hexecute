@@ -154,7 +154,7 @@ func (a *App) drawParticles(window *wayland.WaylandWindow) {
 
 func (a *App) drawBackground(currentTime float32, window *wayland.WaylandWindow) {
 	fadeDuration := float32(1.0)
-	targetAlpha := float32(0.75)
+	targetAlpha := a.app.Settings.OverlayAlpha
 
 	var alpha float32
 	if currentTime < fadeDuration {
