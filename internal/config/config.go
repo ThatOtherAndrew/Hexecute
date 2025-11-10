@@ -5,6 +5,8 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"reflect"
+	"strings"
 )
 
 // TODO: migrate other settings
@@ -58,6 +60,20 @@ func LoadSettings() (*Settings, error) {
 		return nil, err
 	}
 
+	// Check for unrecognised keys
+	var rawSettings map[string]interface{}
+	if err := json.Unmarshal(data, &rawSettings); err != nil {
+		log.Printf("Invalid settings file, using defaults: %v", err)
+		return defaultSettings, nil
+	}
+
+	knownKeys := getKnownKeys(Settings{})
+	for key := range rawSettings {
+		if !knownKeys[key] {
+			log.Printf("Warning: unrecognised setting key '%s' in settings file", key)
+		}
+	}
+
 	settings := &Settings{}
 	if err := json.Unmarshal(data, settings); err != nil {
 		log.Printf("Invalid settings file, using defaults: %v", err)
@@ -80,4 +96,23 @@ func createDefaultSettings(path string, settings *Settings) error {
 		return err
 	}
 	return os.WriteFile(path, data, 0644)
+}
+
+func getKnownKeys(v interface{}) map[string]bool {
+	keys := make(map[string]bool)
+	t := reflect.TypeOf(v)
+	if t.Kind() == reflect.Ptr {
+		t = t.Elem()
+	}
+	for i := 0; i < t.NumField(); i++ {
+		field := t.Field(i)
+		if jsonTag := field.Tag.Get("json"); jsonTag != "" {
+			// Handle json tags like "field,omitempty"
+			tagName := strings.Split(jsonTag, ",")[0]
+			if tagName != "-" {
+				keys[tagName] = true
+			}
+		}
+	}
+	return keys
 }
