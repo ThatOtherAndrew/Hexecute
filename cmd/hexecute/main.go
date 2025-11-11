@@ -153,6 +153,11 @@ func main() {
 		if key, state, hasKey := window.GetLastKey(); hasKey {
 			if state == 1 && key == 0xff1b {
 				if !app.IsExiting {
+					if app.IsDrawing || len(app.Points) > 0 {
+						log.Println("Esc key pressed, aborting gesture")
+					} else {
+						log.Println("Esc key pressed, exiting")
+					}
 					app.IsExiting = true
 					app.ExitStartTime = time.Now()
 					app.Points = nil
@@ -173,10 +178,12 @@ func main() {
 		isPressed := window.GetMouseButton()
 		if isPressed && !wasPressed {
 			app.IsDrawing = true
+			log.Println("Gesture started")
 		} else if !isPressed && wasPressed {
 			app.IsDrawing = false
 
 			if app.LearnMode && len(app.Points) > 0 {
+				log.Println("Gesture completed")
 				processed := stroke.ProcessStroke(app.Points)
 				app.LearnGestures = append(app.LearnGestures, processed)
 				app.LearnCount++
@@ -198,6 +205,7 @@ func main() {
 					spawn.SpawnExitWisps(float32(x), float32(y))
 				}
 			} else if !app.LearnMode && !app.IsExiting && len(app.Points) > 0 {
+				log.Println("Gesture completed")
 				x, y := window.GetCursorPos()
 				exec := execute.New(app)
 				exec.RecognizeAndExecute(window, float32(x), float32(y))
