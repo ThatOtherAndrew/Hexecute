@@ -155,6 +155,7 @@ func main() {
 				if !app.IsExiting {
 					app.IsExiting = true
 					app.ExitStartTime = time.Now()
+					app.Points = nil
 					window.DisableInput()
 					x, y := window.GetCursorPos()
 					spawn := spawn.New(app)
@@ -196,7 +197,7 @@ func main() {
 					spawn := spawn.New(app)
 					spawn.SpawnExitWisps(float32(x), float32(y))
 				}
-			} else if !app.LearnMode && len(app.Points) > 0 {
+			} else if !app.LearnMode && !app.IsExiting && len(app.Points) > 0 {
 				x, y := window.GetCursorPos()
 				exec := execute.New(app)
 				exec.RecognizeAndExecute(window, float32(x), float32(y))
