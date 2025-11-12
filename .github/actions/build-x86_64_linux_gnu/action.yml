@@ -1,0 +1,30 @@
+name: build x86_64_linux_gnu
+
+runs:
+  using: composite
+  steps:
+    - name: get system dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y \
+          libgl1-mesa-dev \
+          xorg-dev \
+          libxi-dev \
+          libxcursor-dev \
+          libxrandr-dev \
+          libxinerama-dev \
+          libxxf86vm-dev \
+          libgl1-mesa-dev \
+          libx11-dev \
+          libxext-dev \
+          libwayland-dev \
+          libwayland-egl1-mesa \
+          libwayland-egl-backend-dev \
+          pkg-config
+      shell: bash
+
+    - name: compile
+      run: |
+        mkdir -p dist
+        GOOS=linux GOARCH=amd64 go build -o dist/hexecute-x86_64-linux-gnu .
+      shell: bash
