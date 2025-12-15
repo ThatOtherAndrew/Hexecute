@@ -574,6 +574,34 @@ void clear_last_key() {
   last_key_state = 0;
 }
 
+EGLDisplay get_egl_display(struct wl_display *display) {
+  EGLDisplay dpy = EGL_NO_DISPLAY;
+
+#ifdef EGL_PLATFORM_WAYLAND_KHR
+  PFNEGLGETPLATFORMDISPLAYEXTPROC get_platform_display_ext =
+      (PFNEGLGETPLATFORMDISPLAYEXTPROC)eglGetProcAddress(
+          "eglGetPlatformDisplayEXT");
+
+  if (get_platform_display_ext) {
+    dpy = get_platform_display_ext(EGL_PLATFORM_WAYLAND_KHR, display, NULL);
+  }
+
+  if (dpy == EGL_NO_DISPLAY) {
+    PFNEGLGETPLATFORMDISPLAYPROC get_platform_display =
+        (PFNEGLGETPLATFORMDISPLAYPROC)eglGetProcAddress("eglGetPlatformDisplay");
+    if (get_platform_display) {
+      dpy = get_platform_display(EGL_PLATFORM_WAYLAND_KHR, display, NULL);
+    }
+  }
+#endif
+
+  if (dpy == EGL_NO_DISPLAY) {
+    dpy = eglGetDisplay((EGLNativeDisplayType)display);
+  }
+
+  return dpy;
+}
+
 EGLNativeWindowType native_window(struct wl_egl_window *egl_window) {
   return (EGLNativeWindowType)egl_window;
 }

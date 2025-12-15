@@ -4,10 +4,13 @@
 #include "tablet-v2.h"
 #include "wlr-layer-shell-client.h"
 #include <EGL/egl.h>
+#include <EGL/eglext.h>
 #include <stdlib.h>
 #include <wayland-client.h>
 #include <wayland-egl.h>
 #include <xkbcommon/xkbcommon.h>
+
+EGLDisplay get_egl_display(struct wl_display *display);
 
 void layer_surface_configure(void *data, struct zwlr_layer_surface_v1 *surface,
                              uint32_t serial, uint32_t width, uint32_t height);
