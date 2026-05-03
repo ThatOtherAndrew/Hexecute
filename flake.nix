@@ -20,6 +20,7 @@
 
         nativeBuildInputs = with pkgs; [
           pkg-config
+          makeWrapper
         ];
 
         buildInputs = with pkgs; [
@@ -31,6 +32,14 @@
           mesa
           xorg.libX11
         ];
+
+        postFixup = ''
+          wrapProgram $out/bin/hexecute \
+            --prefix __EGL_VENDOR_LIBRARY_DIRS : "/run/opengl-driver/share/glvnd/egl_vendor.d" \
+            --prefix __EGL_VENDOR_LIBRARY_DIRS : "${pkgs.mesa}/share/glvnd/egl_vendor.d" \
+            --prefix LIBGL_DRIVERS_PATH : "/run/opengl-driver/lib/dri" \
+            --prefix LIBGL_DRIVERS_PATH : "${pkgs.mesa}/lib/dri"
+        '';
 
         meta = {
           description = "Launch apps by casting spells! 🪄";

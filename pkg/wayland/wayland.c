@@ -190,6 +190,48 @@ void add_registry_listener(struct wl_registry *registry) {
   wl_registry_add_listener(registry, &registry_listener, NULL);
 }
 
+EGLDisplay get_egl_display(struct wl_display *display) {
+  EGLDisplay egl_display = EGL_NO_DISPLAY;
+
+#if defined(EGL_VERSION_1_5)
+  egl_display = eglGetPlatformDisplay(EGL_PLATFORM_WAYLAND_KHR, display, NULL);
+#endif
+
+  if (egl_display == EGL_NO_DISPLAY) {
+    PFNEGLGETPLATFORMDISPLAYPROC get_platform_display =
+        (PFNEGLGETPLATFORMDISPLAYPROC)eglGetProcAddress(
+            "eglGetPlatformDisplay");
+    if (get_platform_display) {
+      egl_display =
+          get_platform_display(EGL_PLATFORM_WAYLAND_KHR, display, NULL);
+    }
+  }
+
+  if (egl_display == EGL_NO_DISPLAY) {
+    PFNEGLGETPLATFORMDISPLAYEXTPROC get_platform_display_ext =
+        (PFNEGLGETPLATFORMDISPLAYEXTPROC)eglGetProcAddress(
+            "eglGetPlatformDisplayEXT");
+    if (get_platform_display_ext) {
+      egl_display =
+          get_platform_display_ext(EGL_PLATFORM_WAYLAND_EXT, display, NULL);
+    }
+  }
+
+  if (egl_display == EGL_NO_DISPLAY) {
+    egl_display = eglGetDisplay((EGLNativeDisplayType)display);
+  }
+
+  if (egl_display == EGL_NO_DISPLAY) {
+    egl_display = eglGetDisplay(EGL_DEFAULT_DISPLAY);
+  }
+
+  return egl_display;
+}
+
+EGLint get_egl_error(void) {
+  return eglGetError();
+}
+
 struct wl_surface *surface_global = NULL;
 
 struct zwlr_layer_surface_v1 *create_layer_surface(struct wl_surface *surface) {

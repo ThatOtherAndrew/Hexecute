@@ -98,9 +98,10 @@ func (w *WaylandWindow) initEGL() error {
 		return fmt.Errorf("failed to create EGL window")
 	}
 
-	w.eglDisplay = C.eglGetDisplay(C.EGLNativeDisplayType(w.display))
+	w.eglDisplay = C.get_egl_display(w.display)
 	if w.eglDisplay == C.EGLDisplay(C.EGL_NO_DISPLAY) {
-		return fmt.Errorf("failed to get EGL display")
+		errCode := C.get_egl_error()
+		return fmt.Errorf("failed to get EGL display (eglGetError=0x%X)", uint32(errCode))
 	}
 
 	var major, minor C.EGLint
