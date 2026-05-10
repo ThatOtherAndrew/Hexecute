@@ -33,6 +33,7 @@ func main() {
 	learnCommand := flag.String("learn", "", "Learn a new gesture for the specified command")
 	listGestures := flag.Bool("list", false, "List all registered gestures")
 	removeGesture := flag.String("remove", "", "Remove a gesture by command name")
+	instantMode := flag.Bool("instant", false, "Enable instant drawing mode (always active, click to complete)")
 	flag.Parse()
 
 	if flag.NArg() > 0 {
@@ -121,6 +122,10 @@ func main() {
 		log.Printf("Loaded %d gesture(s)", len(gestures))
 	}
 
+	if *instantMode {
+		log.Println("Instant mode enabled: drawing always active, click to complete gesture")
+	}
+
 	opengl := opengl.New(app)
 	if err := opengl.InitGL(); err != nil {
 		log.Fatal("Failed to initialize OpenGL:", err)
@@ -140,6 +145,11 @@ func main() {
 
 	lastTime := time.Now()
 	var wasPressed bool
+
+	if *instantMode {
+		app.IsDrawing = true
+		log.Println("Gesture started (instant mode)")
+	}
 
 	for !window.ShouldClose() {
 		now := time.Now()
@@ -175,41 +185,81 @@ func main() {
 				break
 			}
 		}
+
 		isPressed := window.GetMouseButton()
-		if isPressed && !wasPressed {
-			app.IsDrawing = true
-			log.Println("Gesture started")
-		} else if !isPressed && wasPressed {
-			app.IsDrawing = false
 
-			if app.LearnMode && len(app.Points) > 0 {
-				log.Println("Gesture completed")
-				processed := stroke.ProcessStroke(app.Points)
-				app.LearnGestures = append(app.LearnGestures, processed)
-				app.LearnCount++
-				log.Printf("Captured gesture %d/3", app.LearnCount)
+		if *instantMode {
+			if isPressed && !wasPressed {
+				if len(app.Points) > 0 {
+					if app.LearnMode {
+						log.Println("Gesture completed")
+						processed := stroke.ProcessStroke(app.Points)
+						app.LearnGestures = append(app.LearnGestures, processed)
+						app.LearnCount++
+						log.Printf("Captured gesture %d/3", app.LearnCount)
 
-				app.Points = nil
+						app.Points = nil
+						log.Println("Gesture started (ready for next)")
 
-				if app.LearnCount >= 3 {
-					if err := gestures.SaveGesture(app.LearnCommand, app.LearnGestures); err != nil {
-						log.Fatal("Failed to save gesture:", err)
+						if app.LearnCount >= 3 {
+							if err := gestures.SaveGesture(app.LearnCommand, app.LearnGestures); err != nil {
+								log.Fatal("Failed to save gesture:", err)
+							}
+							log.Printf("Gesture saved for command: %s", app.LearnCommand)
+
+							app.IsExiting = true
+							app.ExitStartTime = time.Now()
+							window.DisableInput()
+							x, y := window.GetCursorPos()
+							spawn := spawn.New(app)
+							spawn.SpawnExitWisps(float32(x), float32(y))
+						}
+					} else if !app.IsExiting {
+						log.Println("Gesture completed")
+						x, y := window.GetCursorPos()
+						exec := execute.New(app)
+						exec.RecognizeAndExecute(window, float32(x), float32(y))
+						app.Points = nil
+						log.Println("Gesture started (ready for next)")
 					}
-					log.Printf("Gesture saved for command: %s", app.LearnCommand)
-
-					app.IsExiting = true
-					app.ExitStartTime = time.Now()
-					window.DisableInput()
-					x, y := window.GetCursorPos()
-					spawn := spawn.New(app)
-					spawn.SpawnExitWisps(float32(x), float32(y))
 				}
-			} else if !app.LearnMode && !app.IsExiting && len(app.Points) > 0 {
-				log.Println("Gesture completed")
-				x, y := window.GetCursorPos()
-				exec := execute.New(app)
-				exec.RecognizeAndExecute(window, float32(x), float32(y))
-				app.Points = nil
+			}
+		} else {
+			if isPressed && !wasPressed {
+				app.IsDrawing = true
+				log.Println("Gesture started")
+			} else if !isPressed && wasPressed {
+				app.IsDrawing = false
+
+				if app.LearnMode && len(app.Points) > 0 {
+					log.Println("Gesture completed")
+					processed := stroke.ProcessStroke(app.Points)
+					app.LearnGestures = append(app.LearnGestures, processed)
+					app.LearnCount++
+					log.Printf("Captured gesture %d/3", app.LearnCount)
+
+					app.Points = nil
+
+					if app.LearnCount >= 3 {
+						if err := gestures.SaveGesture(app.LearnCommand, app.LearnGestures); err != nil {
+							log.Fatal("Failed to save gesture:", err)
+						}
+						log.Printf("Gesture saved for command: %s", app.LearnCommand)
+
+						app.IsExiting = true
+						app.ExitStartTime = time.Now()
+						window.DisableInput()
+						x, y := window.GetCursorPos()
+						spawn := spawn.New(app)
+						spawn.SpawnExitWisps(float32(x), float32(y))
+					}
+				} else if !app.LearnMode && !app.IsExiting && len(app.Points) > 0 {
+					log.Println("Gesture completed")
+					x, y := window.GetCursorPos()
+					exec := execute.New(app)
+					exec.RecognizeAndExecute(window, float32(x), float32(y))
+					app.Points = nil
+				}
 			}
 		}
 		wasPressed = isPressed
