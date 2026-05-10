@@ -1,0 +1,21 @@
+name: build and upload generic release binary
+
+on:
+  release:
+    types: [published]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: 1.21
+
+      - uses: ./.github/actions/build-x86_64_linux_gnu
+
+      - name: publish binary to release page
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/hexecute-x86_64-linux-gnu
